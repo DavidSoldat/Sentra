@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: sentra-postgres
+    environment:
+      POSTGRES_DB: sentra
+      POSTGRES_USER: sentra
+      POSTGRES_PASSWORD: sentra
+    ports:
+      - '5432:5432'
+    volumes:
+      - sentra_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sentra -d sentra']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sentra_pgdata:

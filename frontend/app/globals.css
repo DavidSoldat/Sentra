@@ -1,0 +1,31 @@
+@import 'tailwindcss';
+
+:root {
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-mono);
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #2d333b transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #2d333b;
+  border-radius: 2px;
+}
