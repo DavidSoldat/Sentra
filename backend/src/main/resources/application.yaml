@@ -34,13 +34,13 @@ sentra:
       max-pool-size: 4
       queue-capacity: 10
     chunk:
-      size-tokens: 800
-      overlap-tokens: 100
+      size-tokens: 400
+      overlap-tokens: 50
     repo:
       max-files: 500
 
   rag:
-    top-k: 5
+    top-k: 20
 
 logging:
   level:

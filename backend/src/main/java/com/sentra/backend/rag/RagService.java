@@ -40,7 +40,12 @@ public class RagService {
 
         List<Content> allContents = contentRetriever.retrieve(Query.from(question));
 
-        log.debug("Total retrieved: {}, repo_id values: {}",
+        if (!allContents.isEmpty()) {
+            var meta = allContents.getFirst().textSegment().metadata();
+            log.info("First chunk metadata: {}", meta.toMap());
+        }
+
+        log.info("Total retrieved: {}, repo_id values: {}",
                 allContents.size(),
                 allContents.stream()
                         .map(c -> c.textSegment().metadata().getString("repo_id"))
@@ -102,6 +107,29 @@ public class RagService {
         }
 
         sb.append("Question: ").append(question);
+
+        return sb.toString();
+    }
+
+    public String retrieveContextForReview(Long repoId, String queryText) {
+        List<Content> allContents = contentRetriever.retrieve(Query.from(queryText));
+
+        List<Content> repoContents = allContents.stream()
+                .filter(c -> String.valueOf(repoId).equals(
+                        c.textSegment().metadata().getString("repo_id")))
+                .toList();
+
+        if (repoContents.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (Content content : repoContents) {
+            TextSegment seg = content.textSegment();
+            String filePath = seg.metadata().getString("file_path");
+            sb.append("### ").append(filePath).append("\n");
+            sb.append(seg.text()).append("\n\n");
+        }
 
         return sb.toString();
     }

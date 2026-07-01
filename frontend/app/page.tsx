@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ChatPanel } from './components/chat/ChatPanel';
 import { RepoInput } from './components/repo/RepoIntpu';
 import { StatusBar } from './components/repo/StatusBar';
@@ -93,6 +94,17 @@ export default function Home() {
           </div>
         )}
       </main>
+      <footer className='border-t border-[#2d333b] px-6 py-4 text-xs text-[#768390] flex items-center justify-center'>
+        <div className='hover:text-[#316dca] transition-colors cursor-pointer'>
+          <a
+            href='https://github.com/DavidSoldat'
+            target='_blank'
+            rel='noopener noreferrer'
+          >
+            Made with ❤️ by David
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }

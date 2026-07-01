@@ -1,6 +1,7 @@
 package com.sentra.backend.ingestion;
 
 import com.sentra.backend.ingestion.dto.ContentResponse;
+import com.sentra.backend.ingestion.dto.PullRequestInfo;
 import com.sentra.backend.ingestion.dto.TreeItem;
 import com.sentra.backend.ingestion.dto.TreeResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -92,5 +93,35 @@ public class GitHubClient {
             if (lower.endsWith(ext)) return false;
         }
         return true;
+    }
+
+    public String getPullRequestDiff(String owner, String repoName, int prNumber) {
+        String diff = restClient.get()
+                .uri("/repos/{owner}/{repo}/pulls/{prNumber}", owner, repoName, prNumber)
+                .header(HttpHeaders.ACCEPT, "application/vnd.github.diff")
+                .retrieve()
+                .body(String.class);
+
+        if (diff == null || diff.isBlank()) {
+            throw new IllegalStateException(
+                    "No diff content returned for PR #%d in %s/%s".formatted(prNumber, owner, repoName));
+        }
+
+        log.debug("Fetched diff for PR #{}: {} chars", prNumber, diff.length());
+        return diff;
+    }
+
+    public PullRequestInfo getPullRequestInfo(String owner, String repoName, int prNumber) {
+        PullRequestInfo info = restClient.get()
+                .uri("/repos/{owner}/{repo}/pulls/{prNumber}", owner, repoName, prNumber)
+                .retrieve()
+                .body(PullRequestInfo.class);
+
+        if (info == null) {
+            throw new IllegalStateException(
+                    "PR #%d not found in %s/%s".formatted(prNumber, owner, repoName));
+        }
+
+        return info;
     }
 }

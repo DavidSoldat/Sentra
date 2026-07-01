@@ -90,7 +90,7 @@ public class IngestionService {
                                 metadata.put("start_line", String.valueOf(c.startLine()));
                                 metadata.put("end_line", String.valueOf(c.endLine()));
                                 metadata.put("repo_id", String.valueOf(repoId));
-                                return TextSegment.from(c.content(), metadata);
+                                return TextSegment.from("File: " + c.filePath() + "\n\n" + c.content(), metadata);
                             })
                             .toList();
 

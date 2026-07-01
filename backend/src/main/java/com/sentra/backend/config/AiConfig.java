@@ -19,7 +19,7 @@ public class AiConfig {
     @Value("${anthropic.api-key}")
     private String anthropicApiKey;
 
-    @Value("${sentra.rag.top-k:5}")
+    @Value("${sentra.rag.top-k:10}")
     private int topK;
 
     @Bean
@@ -45,7 +45,7 @@ public class AiConfig {
                 .embeddingStore(embeddingStore)
                 .embeddingModel(embeddingModel)
                 .maxResults(topK)
-                .minScore(0.5)
+                .minScore(0.3)
                 .build();
     }
 
