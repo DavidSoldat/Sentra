@@ -1,44 +1,28 @@
 'use client';
 
-import Link from 'next/link';
+import { useState } from 'react';
 import { ChatPanel } from './components/chat/ChatPanel';
 import { RepoInput } from './components/repo/RepoIntpu';
-import { StatusBar } from './components/repo/StatusBar';
+import { ReviewPanel } from './components/review/ReviewPanel';
+import { Tabs } from './components/ui/Tabs';
 import { useChat } from './hooks/useChat';
 import { useRepo } from './hooks/useRepo';
 
 export default function Home() {
-  const { repo, error, isSubmitting, submit, reset } = useRepo();
-  const { messages, isAsking, ask, clear } = useChat(repo?.id ?? null);
+  const { repo, error, isSubmitting, submit } = useRepo();
+  const { messages, isAsking, ask } = useChat(repo?.id ?? null);
+  const [activeTab, setActiveTab] = useState<'chat' | 'review'>('chat');
 
-  function handleReset() {
-    reset();
-    clear();
+  const [tabRepoId, setTabRepoId] = useState<number | null>(repo?.id ?? null);
+  if ((repo?.id ?? null) !== tabRepoId) {
+    setTabRepoId(repo?.id ?? null);
+    setActiveTab('chat');
   }
 
   const isReady = repo?.status === 'READY';
 
   return (
     <div className='min-h-screen bg-[#080c10] text-[#cdd9e5] flex flex-col'>
-      <header className='border-b border-[#2d333b] px-6 py-4 flex items-center gap-4'>
-        <div className='flex items-baseline gap-2'>
-          <span className='font-mono text-lg font-medium tracking-tight'>
-            <span className='text-[#316dca]'>[</span>
-            sentra
-            <span className='text-[#316dca]'>]</span>
-          </span>
-          <span className='font-mono text-xs text-[#444c56] uppercase tracking-widest hidden sm:block'>
-            codebase intelligence
-          </span>
-        </div>
-
-        {repo && (
-          <div className='ml-auto'>
-            <StatusBar repo={repo} onReset={handleReset} />
-          </div>
-        )}
-      </header>
-
       <main className='flex-1 flex flex-col max-w-3xl w-full mx-auto px-6 py-8 gap-6'>
         {!isReady && (
           <div className='flex flex-col gap-3'>
@@ -84,13 +68,24 @@ export default function Home() {
         )}
 
         {isReady && repo && (
-          <div className='flex-1' style={{ minHeight: 'calc(100vh - 200px)' }}>
-            <ChatPanel
-              messages={messages}
-              isAsking={isAsking}
-              repoName={repo.name}
-              onAsk={ask}
-            />
+          <div
+            className='flex-1 flex flex-col gap-4'
+            style={{ minHeight: 'calc(100vh - 200px)' }}
+          >
+            <Tabs active={activeTab} onChange={setActiveTab} />
+
+            {activeTab === 'chat' && (
+              <div className='flex-1 flex flex-col'>
+                <ChatPanel
+                  messages={messages}
+                  isAsking={isAsking}
+                  repoName={repo.name}
+                  onAsk={ask}
+                />
+              </div>
+            )}
+
+            {activeTab === 'review' && <ReviewPanel repoId={repo.id} />}
           </div>
         )}
       </main>

@@ -1,4 +1,5 @@
 import { AskResponse, Repo } from '../types';
+import { ReviewResponse, SubmitReviewRequest } from '../types/review';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -31,3 +32,50 @@ export const api = {
       body: JSON.stringify({ question }),
     }),
 };
+
+export class ReviewApiError extends Error {
+  constructor(
+    message: string,
+    public status?: number,
+  ) {
+    super(message);
+    this.name = 'ReviewApiError';
+  }
+}
+
+async function handle<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const body = await res.json();
+      message = body.message ?? message;
+    } catch {}
+    throw new ReviewApiError(message, res.status);
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function submitReview(
+  req: SubmitReviewRequest,
+): Promise<ReviewResponse> {
+  const res = await fetch(`${BASE_URL}/api/reviews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  return handle<ReviewResponse>(res);
+}
+
+export async function getReview(id: number): Promise<ReviewResponse> {
+  const res = await fetch(`${BASE_URL}/api/reviews/${id}`, {
+    cache: 'no-store',
+  });
+  return handle<ReviewResponse>(res);
+}
+
+const PR_URL_PATTERN =
+  /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+\/?$/;
+
+export function isValidPrUrl(url: string): boolean {
+  return PR_URL_PATTERN.test(url.trim());
+}
