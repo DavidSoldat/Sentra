@@ -8,11 +8,11 @@ interface UseReviewResult {
   review: ReviewResponse | null;
   error: string | null;
   isSubmitting: boolean;
-  start: (repoId: number, prUrl: string) => Promise<void>;
+  start: (prUrl: string) => Promise<void>;
   reset: () => void;
 }
 
-export function useReview(): UseReviewResult {
+export function useReview(repoId: number | null): UseReviewResult {
   const [review, setReview] = useState<ReviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,6 +24,23 @@ export function useReview(): UseReviewResult {
       pollRef.current = null;
     }
   }, []);
+
+  const reset = useCallback(() => {
+    stopPolling();
+    setReview(null);
+    setError(null);
+  }, [stopPolling]);
+
+  const [lastRepoId, setLastRepoId] = useState(repoId);
+  if (repoId !== lastRepoId) {
+    setLastRepoId(repoId);
+    setReview(null);
+    setError(null);
+  }
+
+  useEffect(() => {
+    stopPolling();
+  }, [repoId, stopPolling]);
 
   const poll = useCallback(
     (id: number) => {
@@ -44,7 +61,11 @@ export function useReview(): UseReviewResult {
   );
 
   const start = useCallback(
-    async (repoId: number, prUrl: string) => {
+    async (prUrl: string) => {
+      if (repoId == null) {
+        setError('No repo selected.');
+        return;
+      }
       setError(null);
       setIsSubmitting(true);
       try {
@@ -63,14 +84,8 @@ export function useReview(): UseReviewResult {
         setIsSubmitting(false);
       }
     },
-    [poll],
+    [repoId, poll],
   );
-
-  const reset = useCallback(() => {
-    stopPolling();
-    setReview(null);
-    setError(null);
-  }, [stopPolling]);
 
   useEffect(() => stopPolling, [stopPolling]);
 

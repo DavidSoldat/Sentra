@@ -80,6 +80,7 @@ public class ReviewController {
         return new ReviewResponse(
                 review.getId(),
                 review.getPrUrl(),
+                review.getPrTitle(),
                 review.getPrNumber(),
                 review.getStatus().name(),
                 review.getCreatedAt(),

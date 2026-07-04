@@ -9,7 +9,7 @@ export type Severity = 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
 export interface AgentResult {
   agent: AgentType;
   status: AgentResultStatus;
-  findings: string | null;
+  findings: string | null; // markdown text
   severity: Severity | null;
   completedAt: string | null;
 }
@@ -17,6 +17,7 @@ export interface AgentResult {
 export interface ReviewResponse {
   id: number;
   prUrl: string;
+  prTitle: string | null;
   prNumber: number;
   status: ReviewStatus;
   createdAt: string;

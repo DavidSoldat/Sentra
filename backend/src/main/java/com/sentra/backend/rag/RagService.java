@@ -3,15 +3,19 @@ package com.sentra.backend.rag;
 import com.sentra.backend.repo.RepoEntity;
 import com.sentra.backend.repo.RepoRepository;
 import com.sentra.backend.repo.RepoStatus;
-import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.anthropic.AnthropicChatModel;
-import dev.langchain4j.model.output.Response;
+import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.rag.content.Content;
-import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
-import dev.langchain4j.rag.query.Query;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
+import dev.langchain4j.store.embedding.EmbeddingSearchResult;
+import dev.langchain4j.store.embedding.EmbeddingStore;
+import dev.langchain4j.store.embedding.filter.Filter;
+import dev.langchain4j.store.embedding.filter.MetadataFilterBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +28,12 @@ public class RagService {
 
     private final RepoRepository repoRepository;
     private final QuestionRepository questionRepository;
-    private final EmbeddingStoreContentRetriever contentRetriever;
     private final AnthropicChatModel chatModel;
+    private final EmbeddingStore<TextSegment> embeddingStore;
+    private final EmbeddingModel embeddingModel;
 
+    @Value("${sentra.rag.top-k}")
+    private int topK;
 
     @Transactional
     public AskResponse ask(Long repoId, String question) {
@@ -38,31 +45,11 @@ public class RagService {
                     "Repo %d is not ready for querying (status: %s)".formatted(repoId, repo.getStatus()));
         }
 
-        List<Content> allContents = contentRetriever.retrieve(Query.from(question));
+        List<Content> repoContents = retrieveForRepo(repoId, question);
 
-        if (!allContents.isEmpty()) {
-            var meta = allContents.getFirst().textSegment().metadata();
-            log.info("First chunk metadata: {}", meta.toMap());
-        }
-
-        log.info("Total retrieved: {}, repo_id values: {}",
-                allContents.size(),
-                allContents.stream()
-                        .map(c -> c.textSegment().metadata().getString("repo_id"))
-                        .toList());
-
-        List<Content> repoContents = allContents.stream()
-                .filter(c -> String.valueOf(repoId).equals(
-                        c.textSegment().metadata().getString("repo_id")))
-                .toList();
-
-        log.debug("After repo filter: {}", repoContents.size());
-
-        log.debug("Retrieved {} chunks for repo={} (filtered from {})",
-                repoContents.size(), repoId, allContents.size());
+        log.debug("Retrieved {} chunks for repo={}", repoContents.size(), repoId);
 
         String prompt = buildPrompt(question, repoContents);
-
         String answer = chatModel.chat(prompt);
 
         List<String> sources = repoContents.stream()
@@ -72,9 +59,7 @@ public class RagService {
                 .sorted()
                 .toList();
 
-        QuestionEntity saved = questionRepository.save(
-                new QuestionEntity(repo, question, answer));
-
+        QuestionEntity saved = questionRepository.save(new QuestionEntity(repo, question, answer));
         log.info("Q&A saved: questionId={}, repoId={}, sources={}", saved.getId(), repoId, sources);
 
         return new AskResponse(answer, sources);
@@ -90,7 +75,13 @@ public class RagService {
                 """);
 
         if (contents.isEmpty()) {
-            sb.append("No relevant code context was found for this question.\n\n");
+            sb.append("""
+                This repository has already been indexed and searched automatically for this question.
+                No code relevant to it was found, which most likely means the codebase does not
+                contain anything related to this topic. State that plainly and directly —
+                do not ask the user to paste or share code, since you already have full access
+                to search it yourself.
+                """);
         } else {
             sb.append("--- CODE CONTEXT ---\n");
             for (Content content : contents) {
@@ -112,12 +103,7 @@ public class RagService {
     }
 
     public String retrieveContextForReview(Long repoId, String queryText) {
-        List<Content> allContents = contentRetriever.retrieve(Query.from(queryText));
-
-        List<Content> repoContents = allContents.stream()
-                .filter(c -> String.valueOf(repoId).equals(
-                        c.textSegment().metadata().getString("repo_id")))
-                .toList();
+        List<Content> repoContents = retrieveForRepo(repoId, queryText);
 
         if (repoContents.isEmpty()) {
             return "";
@@ -132,6 +118,27 @@ public class RagService {
         }
 
         return sb.toString();
+    }
+
+    private List<Content> retrieveForRepo(Long repoId, String question) {
+        Embedding queryEmbedding = embeddingModel.embed(question).content();
+
+        Filter repoFilter = MetadataFilterBuilder
+                .metadataKey("repo_id")
+                .isEqualTo(String.valueOf(repoId));
+
+        EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
+                .queryEmbedding(queryEmbedding)
+                .maxResults(topK)
+                .minScore(0.3)
+                .filter(repoFilter)
+                .build();
+
+        EmbeddingSearchResult<TextSegment> result = embeddingStore.search(request);
+
+        return result.matches().stream()
+                .map(match -> Content.from(match.embedded()))
+                .toList();
     }
 
     public record AskResponse(String answer, List<String> sources) {}

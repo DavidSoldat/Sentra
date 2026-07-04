@@ -8,6 +8,7 @@ import com.sentra.backend.agent.PerformanceAgent;
 import com.sentra.backend.agent.SecurityAgent;
 import com.sentra.backend.ingestion.GitHubClient;
 import com.sentra.backend.ingestion.GitHubUrlParser;
+import com.sentra.backend.ingestion.dto.PullRequestInfo;
 import com.sentra.backend.rag.RagService;
 import com.sentra.backend.repo.RepoRepository;
 import com.sentra.backend.review.entity.AgentResultEntity;
@@ -52,6 +53,12 @@ public class OrchestratorService {
             markReviewRunning(review);
 
             var parsed = GitHubUrlParser.parsePrUrl(review.getPrUrl());
+
+            PullRequestInfo info = gitHubClient.getPullRequestInfo(
+                    parsed.owner(), parsed.repoName(), parsed.prNumber());
+            review.setPrTitle(info.title());
+            reviewRepository.save(review);
+
             String diff = gitHubClient.getPullRequestDiff(
                     parsed.owner(), parsed.repoName(), parsed.prNumber());
 

@@ -46,7 +46,6 @@ export function PrUrlInput({ onSubmit, isSubmitting }: PrUrlInputProps) {
           {isSubmitting ? 'starting…' : 'Review PR'}
         </button>
       </div>
-
       {showError && (
         <p className='font-mono text-[12px] text-[#F85149]'>
           That doesn&apos;t look like a GitHub PR URL. Expected format:

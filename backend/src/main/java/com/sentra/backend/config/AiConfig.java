@@ -4,7 +4,6 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.anthropic.AnthropicChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.allminilml6v2q.AllMiniLmL6V2QuantizedEmbeddingModel;
-import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.pgvector.PgVectorEmbeddingStore;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +18,7 @@ public class AiConfig {
     @Value("${anthropic.api-key}")
     private String anthropicApiKey;
 
-    @Value("${sentra.rag.top-k:10}")
+    @Value("${sentra.rag.top-k}")
     private int topK;
 
     @Bean
@@ -38,23 +37,11 @@ public class AiConfig {
     }
 
     @Bean
-    public EmbeddingStoreContentRetriever contentRetriever(
-            EmbeddingStore<TextSegment> embeddingStore,
-            EmbeddingModel embeddingModel) {
-        return EmbeddingStoreContentRetriever.builder()
-                .embeddingStore(embeddingStore)
-                .embeddingModel(embeddingModel)
-                .maxResults(topK)
-                .minScore(0.3)
-                .build();
-    }
-
-    @Bean
     public AnthropicChatModel chatModel() {
         return AnthropicChatModel.builder()
                 .apiKey(anthropicApiKey)
                 .modelName("claude-haiku-4-5-20251001")
-                .maxTokens(1024)
+                .maxTokens(2048)
                 .temperature(0.0)
                 .build();
     }

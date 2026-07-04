@@ -7,12 +7,18 @@ import { ReviewPanel } from './components/review/ReviewPanel';
 import { Tabs } from './components/ui/Tabs';
 import { useChat } from './hooks/useChat';
 import { useRepo } from './hooks/useRepo';
+import { useReview } from './hooks/useReview';
 
 export default function Home() {
   const { repo, error, isSubmitting, submit } = useRepo();
   const { messages, isAsking, ask } = useChat(repo?.id ?? null);
+  const {
+    review,
+    error: reviewError,
+    isSubmitting: isReviewSubmitting,
+    start: startReview,
+  } = useReview(repo?.id ?? null);
   const [activeTab, setActiveTab] = useState<'chat' | 'review'>('chat');
-
   const [tabRepoId, setTabRepoId] = useState<number | null>(repo?.id ?? null);
   if ((repo?.id ?? null) !== tabRepoId) {
     setTabRepoId(repo?.id ?? null);
@@ -23,7 +29,11 @@ export default function Home() {
 
   return (
     <div className='min-h-screen bg-[#080c10] text-[#cdd9e5] flex flex-col'>
-      <main className='flex-1 flex flex-col max-w-3xl w-full mx-auto px-6 py-8 gap-6'>
+      <main
+        className={`flex-1 flex flex-col w-full mx-auto px-6 py-8 gap-6 transition-[max-width] duration-200 ${
+          isReady && activeTab === 'review' ? 'max-w-6xl' : 'max-w-3xl'
+        }`}
+      >
         {!isReady && (
           <div className='flex flex-col gap-3'>
             {!repo && (
@@ -85,7 +95,14 @@ export default function Home() {
               </div>
             )}
 
-            {activeTab === 'review' && <ReviewPanel repoId={repo.id} />}
+            {activeTab === 'review' && (
+              <ReviewPanel
+                review={review}
+                error={reviewError}
+                isSubmitting={isReviewSubmitting}
+                onSubmit={startReview}
+              />
+            )}
           </div>
         )}
       </main>

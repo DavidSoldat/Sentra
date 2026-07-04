@@ -61,6 +61,10 @@ public abstract class BaseAgent {
                 Be specific — reference exact file names and line context from the diff.
                 If you find nothing notable in your area of expertise, say so briefly.
                 
+                Focus on the 3-4 most important findings only, ordered by severity —
+                do not attempt to be exhaustive. Keep each finding to 2-4 sentences;
+                skip exploit payload examples unless the vulnerability is non-obvious.
+                
                 End your response with exactly one line in this format:
                 SEVERITY: HIGH | MEDIUM | LOW | NONE
                 
@@ -81,10 +85,6 @@ public abstract class BaseAgent {
         return SeverityStatus.MEDIUM;
     }
 
-    /**
-     * Removes the trailing "SEVERITY: ..." line from the findings text
-     * so it doesn't appear twice in the UI (once as the badge, once in the text).
-     */
     private String stripSeverityLine(String response) {
         return SEVERITY_PATTERN.matcher(response).replaceAll("").stripTrailing();
     }
