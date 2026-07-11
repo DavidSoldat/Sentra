@@ -36,8 +36,9 @@ public class RagService {
     private int topK;
 
     @Transactional
-    public AskResponse ask(Long repoId, String question) {
+    public AskResponse ask(Long repoId, Long userId, String question) {
         RepoEntity repo = repoRepository.findById(repoId)
+                .filter(r -> r.getUser().getId().equals(userId))
                 .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + repoId));
 
         if (repo.getStatus() != RepoStatus.READY) {

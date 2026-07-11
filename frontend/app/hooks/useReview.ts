@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ReviewResponse } from '../types/review';
-import { getReview, ReviewApiError, submitReview } from '../lib/api';
+import { getReview, ApiError, submitReview } from '../lib/api';
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -76,7 +76,7 @@ export function useReview(repoId: number | null): UseReviewResult {
         }
       } catch (err) {
         const message =
-          err instanceof ReviewApiError
+          err instanceof ApiError
             ? err.message
             : "Couldn't start the review. Check the backend is running.";
         setError(message);

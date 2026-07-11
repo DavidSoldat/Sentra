@@ -3,11 +3,13 @@ package com.sentra.backend.web;
 import com.sentra.backend.ingestion.IngestionService;
 import com.sentra.backend.repo.RepoEntity;
 import com.sentra.backend.repo.RepoRepository;
+import com.sentra.backend.user.UserRepository;
 import com.sentra.backend.web.dto.RepoResponse;
 import com.sentra.backend.web.dto.SubmitRepoRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -19,16 +21,23 @@ import java.net.URI;
 public class RepoController {
 
     private final RepoRepository repoRepository;
+    private final UserRepository userRepository;
     private final IngestionService ingestionService;
 
     @PostMapping
-    public ResponseEntity<RepoResponse> submitRepo(@Valid @RequestBody SubmitRepoRequest request) {
+    public ResponseEntity<RepoResponse> submitRepo(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody SubmitRepoRequest request) {
 
-        return repoRepository.findByUrl(request.url())
+        return repoRepository.findByUserIdAndUrl(userId, request.url())
                 .map(existing -> ResponseEntity.ok(RepoResponse.from(existing)))
                 .orElseGet(() -> {
                     String name = parseRepoName(request.url());
-                    RepoEntity saved = repoRepository.save(new RepoEntity(request.url(), name));
+
+
+                    var userRef = userRepository.getReferenceById(userId);
+                    RepoEntity saved = repoRepository.save(
+                            new RepoEntity(userRef, request.url(), name));
 
                     ingestionService.indexRepo(saved.getId());
 
@@ -44,8 +53,12 @@ public class RepoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<RepoResponse> getRepo(@PathVariable Long id) {
+    public ResponseEntity<RepoResponse> getRepo(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+
         return repoRepository.findById(id)
+                .filter(repo -> repo.getUser().getId().equals(userId))
                 .map(repo -> ResponseEntity.ok(RepoResponse.from(repo)))
                 .orElse(ResponseEntity.notFound().build());
     }

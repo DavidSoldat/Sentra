@@ -17,6 +17,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,11 +35,11 @@ public class ReviewController {
     private final OrchestratorService orchestratorService;
 
     @PostMapping
-    public ResponseEntity<ReviewResponse> submitReview(@Valid @RequestBody SubmitReviewRequest request) {
+    public ResponseEntity<ReviewResponse> submitReview(@AuthenticationPrincipal Long userId, @Valid @RequestBody SubmitReviewRequest request) {
         var parsed = GitHubUrlParser.parsePrUrl(request.prUrl());
         String repoUrl = "https://github.com/%s/%s".formatted(parsed.owner(), parsed.repoName());
 
-        RepoEntity repo = repoRepository.findByUrl(repoUrl)
+        RepoEntity repo = repoRepository.findByUserIdAndUrl(userId, repoUrl)
                 .orElseThrow(() -> new IllegalStateException(
                         "Repo %s is not indexed yet. Index it first via POST /api/repos before requesting a PR review."
                                 .formatted(repoUrl)));
