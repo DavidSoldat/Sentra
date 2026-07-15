@@ -1,5 +1,6 @@
-import { AskResponse, Repo } from '../types';
+import { AskResponse, QuestionResponse, Repo, User } from '../types';
 import { ReviewResponse, SubmitReviewRequest } from '../types/review';
+import { notifyUnauthorized } from './authEvents';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -12,7 +13,6 @@ export class ApiError extends Error {
     this.name = 'ApiError';
   }
 }
-
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -27,9 +27,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       const body = await res.json();
       message = body.message ?? message;
     } catch {}
+
+    if (res.status === 401 && path !== '/api/auth/me') {
+      notifyUnauthorized();
+    }
+
     throw new ApiError(message, res.status);
   }
-
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
@@ -47,6 +52,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ question }),
     }),
+
+  listRepos: () => request<Repo[]>('/api/repos'),
+
+  getQuestions: (repoId: number) =>
+    request<QuestionResponse[]>(`/api/repos/${repoId}/questions`),
+
+  getMe: () => request<User>('/api/auth/me'),
+  logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
 };
 
 export async function submitReview(

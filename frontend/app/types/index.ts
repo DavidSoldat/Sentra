@@ -21,3 +21,16 @@ export interface AskResponse {
   answer: string;
   sources: string[];
 }
+
+export interface QuestionResponse {
+  id: number;
+  question: string;
+  answer: string;
+  createdAt: string;
+}
+
+export interface User {
+  id: number;
+  username: string;
+  avatarUrl: string | null;
+}

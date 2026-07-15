@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/repos")
@@ -24,6 +25,15 @@ public class RepoController {
     private final UserRepository userRepository;
     private final IngestionService ingestionService;
 
+    @GetMapping
+    public ResponseEntity<List<RepoResponse>> listRepos(@AuthenticationPrincipal Long userId) {
+        List<RepoResponse> repos = repoRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(RepoResponse::from)
+                .toList();
+
+        return ResponseEntity.ok(repos);
+    }
+
     @PostMapping
     public ResponseEntity<RepoResponse> submitRepo(
             @AuthenticationPrincipal Long userId,
@@ -33,7 +43,6 @@ public class RepoController {
                 .map(existing -> ResponseEntity.ok(RepoResponse.from(existing)))
                 .orElseGet(() -> {
                     String name = parseRepoName(request.url());
-
 
                     var userRef = userRepository.getReferenceById(userId);
                     RepoEntity saved = repoRepository.save(

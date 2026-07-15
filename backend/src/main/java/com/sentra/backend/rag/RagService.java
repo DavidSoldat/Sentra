@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -142,5 +143,17 @@ public class RagService {
                 .toList();
     }
 
+    public List<QuestionHistoryItem> getHistory(Long repoId, Long userId) {
+        repoRepository.findById(repoId)
+                .filter(r -> r.getUser().getId().equals(userId))
+                .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + repoId));
+
+        return questionRepository.findByRepoIdOrderByCreatedAtAsc(repoId).stream()
+                .map(q -> new QuestionHistoryItem(q.getId(), q.getQuestion(), q.getAnswer(), q.getCreatedAt()))
+                .toList();
+    }
+
+
+    public record QuestionHistoryItem(Long id, String question, String answer, Instant createdAt) {}
     public record AskResponse(String answer, List<String> sources) {}
 }

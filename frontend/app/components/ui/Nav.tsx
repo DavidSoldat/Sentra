@@ -1,17 +1,16 @@
 'use client';
-import { useChat } from '@/app/hooks/useChat';
-import { useRepo } from '@/app/hooks/useRepo';
-import Link from 'next/link';
+import { useRepoStore } from '../../store/useRepoStore';
+import { useChatStore } from '../../store/useChatStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { StatusBar } from '../repo/StatusBar';
+import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Nav() {
-  const { repo, reset } = useRepo();
-  const { clear } = useChat(repo?.id ?? null);
-
-  function handleReset() {
-    reset();
-    clear();
-  }
+  const repo = useRepoStore((s) => s.repo);
+  const reset = useRepoStore((s) => s.reset);
+  const clear = useChatStore((s) => s.clear);
+  const user = useAuthStore((s) => s.user);
 
   return (
     <header className='border-b border-[#2d333b] px-6 py-4 flex items-center gap-4 bg-[#080c10] text-[#cdd9e5]'>
@@ -26,11 +25,33 @@ export default function Nav() {
         </span>
       </Link>
 
-      {repo && (
-        <div className='ml-auto'>
-          <StatusBar repo={repo} onReset={handleReset} />
-        </div>
-      )}
+      <div className='ml-auto flex items-center gap-3'>
+        {repo && (
+          <StatusBar
+            repo={repo}
+            onReset={() => {
+              reset();
+              clear();
+            }}
+          />
+        )}
+        {user && (
+          <>
+            {user.avatarUrl && (
+              <Image
+                src={user.avatarUrl}
+                alt={user.username}
+                width={24}
+                height={24}
+                className='h-6 w-6 rounded-full'
+              />
+            )}
+            <span className='font-mono text-xs text-[#768390]'>
+              {user.username}
+            </span>
+          </>
+        )}
+      </div>
     </header>
   );
 }

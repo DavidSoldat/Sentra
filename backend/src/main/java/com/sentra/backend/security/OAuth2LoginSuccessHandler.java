@@ -28,7 +28,7 @@ import java.time.Instant;
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     @Value("${FRONTEND_REDIRECT_URL}")
-    private static String FRONTEND_REDIRECT_URL;
+    private String frontendRedirectUrl;
     private static final String COOKIE_NAME = "sentra_session";
     private static final Duration COOKIE_MAX_AGE = Duration.ofDays(7);
 
@@ -67,9 +67,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 .build();
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-        response.sendRedirect(FRONTEND_REDIRECT_URL);
+        response.sendRedirect(frontendRedirectUrl);
 
         log.info("User {} (githubId={}) logged in successfully", user.getUsername(), githubId);
-
     }
 }

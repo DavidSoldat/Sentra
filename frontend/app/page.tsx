@@ -5,13 +5,20 @@ import { ChatPanel } from './components/chat/ChatPanel';
 import { RepoInput } from './components/repo/RepoIntpu';
 import { ReviewPanel } from './components/review/ReviewPanel';
 import { Tabs } from './components/ui/Tabs';
-import { useChat } from './hooks/useChat';
-import { useRepo } from './hooks/useRepo';
 import { useReview } from './hooks/useReview';
+import { useRepoStore } from './store/useRepoStore';
+import { useChatStore } from './store/useChatStore';
 
 export default function Home() {
-  const { repo, error, isSubmitting, submit } = useRepo();
-  const { messages, isAsking, ask } = useChat(repo?.id ?? null);
+  const repo = useRepoStore((s) => s.repo);
+  const error = useRepoStore((s) => s.error);
+  const isSubmitting = useRepoStore((s) => s.isSubmitting);
+  const submit = useRepoStore((s) => s.submit);
+
+  const messages = useChatStore((s) => s.messages);
+  const isAsking = useChatStore((s) => s.isAsking);
+  const ask = useChatStore((s) => s.ask);
+
   const {
     review,
     error: reviewError,
@@ -28,9 +35,9 @@ export default function Home() {
   const isReady = repo?.status === 'READY';
 
   return (
-    <div className='min-h-screen bg-[#080c10] text-[#cdd9e5] flex flex-col'>
+    <div className='h-full min-h-0 bg-[#080c10] text-[#cdd9e5] flex flex-col overflow-hidden'>
       <main
-        className={`flex-1 flex flex-col w-full mx-auto px-6 py-8 gap-6 transition-[max-width] duration-200 ${
+        className={`flex-1 min-h-0 flex flex-col w-full mx-auto px-6 py-8 gap-6 transition-[max-width] duration-200 overflow-hidden ${
           isReady && activeTab === 'review' ? 'max-w-6xl' : 'max-w-3xl'
         }`}
       >
@@ -78,14 +85,11 @@ export default function Home() {
         )}
 
         {isReady && repo && (
-          <div
-            className='flex-1 flex flex-col gap-4'
-            style={{ minHeight: 'calc(100vh - 200px)' }}
-          >
+          <div className='flex-1 min-h-0 flex flex-col gap-4'>
             <Tabs active={activeTab} onChange={setActiveTab} />
 
             {activeTab === 'chat' && (
-              <div className='flex-1 flex flex-col'>
+              <div className='flex-1 min-h-0 flex flex-col'>
                 <ChatPanel
                   messages={messages}
                   isAsking={isAsking}
