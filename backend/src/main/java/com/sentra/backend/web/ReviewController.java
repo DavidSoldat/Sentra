@@ -1,5 +1,6 @@
 package com.sentra.backend.web;
 
+import com.sentra.backend.billing.UsageEnforcementService;
 import com.sentra.backend.ingestion.GitHubUrlParser;
 import com.sentra.backend.orchestrator.OrchestratorService;
 import com.sentra.backend.repo.RepoEntity;
@@ -9,6 +10,8 @@ import com.sentra.backend.review.entity.ReviewEntity;
 import com.sentra.backend.review.enums.AgentType;
 import com.sentra.backend.review.repository.AgentResultRepository;
 import com.sentra.backend.review.repository.ReviewRepository;
+import com.sentra.backend.user.UserEntity;
+import com.sentra.backend.user.UserRepository;
 import com.sentra.backend.web.dto.AgentResultResponse;
 import com.sentra.backend.web.dto.ReviewResponse;
 import com.sentra.backend.web.dto.SubmitReviewRequest;
@@ -33,6 +36,8 @@ public class ReviewController {
     private final AgentResultRepository agentResultRepository;
     private final RepoRepository repoRepository;
     private final OrchestratorService orchestratorService;
+    private final UsageEnforcementService usageEnforcementService;
+    private final UserRepository userRepository;
 
     @PostMapping
     public ResponseEntity<ReviewResponse> submitReview(@AuthenticationPrincipal Long userId, @Valid @RequestBody SubmitReviewRequest request) {
@@ -43,6 +48,11 @@ public class ReviewController {
                 .orElseThrow(() -> new IllegalStateException(
                         "Repo %s is not indexed yet. Index it first via POST /api/repos before requesting a PR review."
                                 .formatted(repoUrl)));
+
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+        usageEnforcementService.checkAndIncrementReviews(user);
 
         ReviewEntity review = reviewRepository.save(
                 new ReviewEntity(repo, request.prUrl(), parsed.prNumber(), null));

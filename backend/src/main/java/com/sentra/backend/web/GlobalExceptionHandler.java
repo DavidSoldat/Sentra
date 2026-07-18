@@ -1,5 +1,7 @@
 package com.sentra.backend.web;
 
+import com.sentra.backend.billing.QuotaExceededException;
+import com.sentra.backend.billing.RepoLimitExceededException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -53,6 +56,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse(404, "No resource found for this path"));
+    }
+
+    @ExceptionHandler(QuotaExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleQuotaExceeded(QuotaExceededException ex) {
+        return ResponseEntity.status(429).body(Map.of(
+                "error", "quota_exceeded",
+                "resourceType", ex.getResourceType(),
+                "limit", ex.getLimit(),
+                "resetsAt", ex.getResetsAt().toString()
+        ));
+    }
+
+    @ExceptionHandler(RepoLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleRepoLimitExceeded(RepoLimitExceededException ex) {
+        return ResponseEntity.status(403).body(Map.of(
+                "error", "repo_limit_exceeded",
+                "limit", ex.getLimit()
+        ));
     }
 
     public record ErrorResponse (

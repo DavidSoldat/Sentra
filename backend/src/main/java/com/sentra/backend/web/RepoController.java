@@ -1,8 +1,10 @@
 package com.sentra.backend.web;
 
+import com.sentra.backend.billing.RepoLimitExceededException;
 import com.sentra.backend.ingestion.IngestionService;
 import com.sentra.backend.repo.RepoEntity;
 import com.sentra.backend.repo.RepoRepository;
+import com.sentra.backend.user.UserEntity;
 import com.sentra.backend.user.UserRepository;
 import com.sentra.backend.web.dto.RepoResponse;
 import com.sentra.backend.web.dto.SubmitRepoRequest;
@@ -42,11 +44,18 @@ public class RepoController {
         return repoRepository.findByUserIdAndUrl(userId, request.url())
                 .map(existing -> ResponseEntity.ok(RepoResponse.from(existing)))
                 .orElseGet(() -> {
+                    UserEntity user = userRepository.findById(userId)
+                            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+                    long currentRepoCount = repoRepository.countByUserId(userId);
+                    if (currentRepoCount >= user.getTier().getMaxRepos()) {
+                        throw new RepoLimitExceededException(user.getTier().getMaxRepos());
+                    }
+
                     String name = parseRepoName(request.url());
 
-                    var userRef = userRepository.getReferenceById(userId);
                     RepoEntity saved = repoRepository.save(
-                            new RepoEntity(userRef, request.url(), name));
+                            new RepoEntity(user, request.url(), name));
 
                     ingestionService.indexRepo(saved.getId());
 

@@ -1,5 +1,6 @@
 package com.sentra.backend.rag;
 
+import com.sentra.backend.billing.UsageEnforcementService;
 import com.sentra.backend.repo.RepoEntity;
 import com.sentra.backend.repo.RepoRepository;
 import com.sentra.backend.repo.RepoStatus;
@@ -32,6 +33,7 @@ public class RagService {
     private final AnthropicChatModel chatModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final EmbeddingModel embeddingModel;
+    private final UsageEnforcementService usageEnforcementService;
 
     @Value("${sentra.rag.top-k}")
     private int topK;
@@ -46,6 +48,8 @@ public class RagService {
             throw new IllegalStateException(
                     "Repo %d is not ready for querying (status: %s)".formatted(repoId, repo.getStatus()));
         }
+
+        usageEnforcementService.checkAndIncrementQuestions(repo.getUser());
 
         List<Content> repoContents = retrieveForRepo(repoId, question);
 

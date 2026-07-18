@@ -1,5 +1,6 @@
 package com.sentra.backend.user;
 
+import com.sentra.backend.billing.Tier;
 import com.sentra.backend.security.EncryptedStringConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -37,6 +38,9 @@ public class UserEntity {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @Enumerated(EnumType.STRING)
+    private Tier tier = Tier.FREE;
 
     public UserEntity(Long githubId, String username, String avatarUrl, String githubAccessToken) {
         this.githubId = githubId;
