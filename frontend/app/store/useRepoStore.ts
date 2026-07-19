@@ -13,7 +13,8 @@ interface RepoState {
   _pollId: ReturnType<typeof setInterval> | null;
 
   fetchRepos: () => Promise<void>;
-  submit: (url: string) => Promise<void>;
+  submit: (url: string) => Promise<Repo>;
+  selectById: (id: number) => Promise<void>;
   select: (repo: Repo) => void;
   reset: () => void;
   _stopPolling: () => void;
@@ -65,6 +66,36 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     }
   },
 
+  selectById: async (id) => {
+    get()._stopPolling();
+    set({ error: null });
+
+    const cached = get().repos.find((r) => r.id === id);
+    if (cached) {
+      set({ repo: cached });
+      if (cached.status !== 'READY' && cached.status !== 'FAILED') {
+        get()._startPolling(cached.id);
+      }
+      return;
+    }
+
+    try {
+      const data = await api.getRepo(id);
+      set((state) => {
+        const exists = state.repos.some((r) => r.id === data.id);
+        return {
+          repo: data,
+          repos: exists ? state.repos : [data, ...state.repos],
+        };
+      });
+      if (data.status !== 'READY' && data.status !== 'FAILED') {
+        get()._startPolling(data.id);
+      }
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : 'Repo not found' });
+    }
+  },
+
   submit: async (url) => {
     set({ error: null, isSubmitting: true });
     try {
@@ -79,8 +110,10 @@ export const useRepoStore = create<RepoState>((set, get) => ({
         };
       });
       if (data.status !== 'READY') get()._startPolling(data.id);
+      return data;
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to submit repo' });
+      throw e;
     } finally {
       set({ isSubmitting: false });
     }

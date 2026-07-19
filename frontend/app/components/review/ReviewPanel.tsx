@@ -1,8 +1,15 @@
 'use client';
 
 import { ReviewResponse } from '../../types/review';
-import { PrUrlInput } from './UrlInput';
 import { AgentGrid } from './AgentGrid';
+import { PrSelector } from './PrSelector';
+
+interface QuotaExceededBody {
+  error: 'quota_exceeded';
+  resourceType: 'questions' | 'reviews';
+  limit: number;
+  resetsAt: string;
+}
 
 function overallLabel(status?: string) {
   switch (status) {
@@ -18,23 +25,53 @@ function overallLabel(status?: string) {
 }
 
 interface ReviewPanelProps {
+  repoId: number;
   review: ReviewResponse | null;
   error: string | null;
+  quotaError: QuotaExceededBody | null;
   isSubmitting: boolean;
   onSubmit: (prUrl: string) => void;
 }
 
 export function ReviewPanel({
+  repoId,
   review,
   error,
+  quotaError,
   isSubmitting,
   onSubmit,
 }: ReviewPanelProps) {
   return (
     <div className='flex flex-col gap-6'>
-      <PrUrlInput onSubmit={onSubmit} isSubmitting={isSubmitting} />
+      {quotaError ? (
+        <div className='flex items-center justify-between gap-4 rounded-md border border-[#F85149]/40 bg-[#3D1418] px-4 py-3'>
+          <p className='font-mono text-sm text-[#F85149]'>
+            You&apos;ve used all {quotaError.limit} free{' '}
+            {quotaError.resourceType} this month — resets{' '}
+            {new Date(quotaError.resetsAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+            })}
+            .
+          </p>
+          <button
+            type='button'
+            disabled
+            title='Coming soon'
+            className='shrink-0 rounded-md bg-[#316dca]/40 px-3 py-1.5 font-mono text-xs text-white/70 cursor-not-allowed'
+          >
+            Upgrade
+          </button>
+        </div>
+      ) : (
+        <PrSelector
+          repoId={repoId}
+          isSubmitting={isSubmitting}
+          onSubmit={onSubmit}
+        />
+      )}
 
-      {error && (
+      {!quotaError && error && (
         <div className='rounded-md border border-[#F85149]/40 bg-[#3D1418] px-4 py-3 font-mono text-sm text-[#F85149]'>
           {error}
         </div>
@@ -62,7 +99,7 @@ export function ReviewPanel({
         </>
       )}
 
-      {!review && (
+      {!review && !quotaError && (
         <p className='font-mono text-sm text-[#6E7681]'>
           Paste a pull request from this repo above to run the four review
           agents against it.

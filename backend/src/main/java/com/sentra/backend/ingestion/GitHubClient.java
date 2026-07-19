@@ -1,11 +1,9 @@
 package com.sentra.backend.ingestion;
 
-import com.sentra.backend.ingestion.dto.ContentResponse;
-import com.sentra.backend.ingestion.dto.PullRequestInfo;
-import com.sentra.backend.ingestion.dto.TreeItem;
-import com.sentra.backend.ingestion.dto.TreeResponse;
+import com.sentra.backend.ingestion.dto.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -123,5 +121,19 @@ public class GitHubClient {
         }
 
         return info;
+    }
+
+    public List<PullRequestSummary> listPullRequests(String owner, String repoName) {
+        List<PullRequestSummary> prs = restClient.get()
+                .uri("/repos/{owner}/{repo}/pulls?state=all&per_page=100&sort=created&direction=desc",
+                        owner, repoName)
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<PullRequestSummary>>() {});
+
+        if (prs == null) {
+            throw new IllegalStateException(
+                    "Could not fetch pull requests for %s/%s".formatted(owner, repoName));
+        }
+        return prs;
     }
 }

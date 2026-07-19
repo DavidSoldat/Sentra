@@ -13,11 +13,20 @@ const SUGGESTIONS = [
   'Where are environment variables and configuration set up?',
 ];
 
+interface QuotaExceededBody {
+  error: 'quota_exceeded';
+  resourceType: 'questions' | 'reviews';
+  limit: number;
+  resetsAt: string;
+}
+
 interface ChatPanelProps {
   messages: Message[];
   isAsking: boolean;
   repoName: string;
   onAsk: (question: string) => void;
+  quotaError: QuotaExceededBody | null;
+  askError: string | null;
 }
 
 export function ChatPanel({
@@ -25,6 +34,8 @@ export function ChatPanel({
   isAsking,
   repoName,
   onAsk,
+  quotaError,
+  askError,
 }: ChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -136,7 +147,39 @@ export function ChatPanel({
         )}
       </div>
 
-      <ChatInput onAsk={onAsk} isAsking={isAsking} />
+      {quotaError && (
+        <div className='flex items-center justify-between gap-4 border-t border-[#6e2b2b] bg-[#1c1011] px-4 py-3'>
+          <p className='font-mono text-xs text-[#f85149]'>
+            You&apos;ve used all {quotaError.limit} free{' '}
+            {quotaError.resourceType} this month — resets{' '}
+            {new Date(quotaError.resetsAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+            })}
+            .
+          </p>
+          <button
+            type='button'
+            disabled
+            title='Coming soon'
+            className='shrink-0 rounded-md bg-[#316dca]/40 px-3 py-1.5 font-mono text-xs text-white/70 cursor-not-allowed'
+          >
+            Upgrade
+          </button>
+        </div>
+      )}
+      {!quotaError && askError && (
+        <div className='flex items-center justify-between gap-4 border-t border-[#6e2b2b] bg-[#1c1011] px-4 py-3'>
+          <p className='font-mono text-xs text-[#f85149]'>{askError}</p>
+        </div>
+      )}
+
+      <div
+        className={quotaError ? 'pointer-events-none opacity-50' : undefined}
+        aria-disabled={!!quotaError}
+      >
+        <ChatInput onAsk={onAsk} isAsking={isAsking} />
+      </div>
     </div>
   );
 }

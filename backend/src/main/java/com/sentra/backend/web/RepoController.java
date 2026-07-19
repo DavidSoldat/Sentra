@@ -1,7 +1,10 @@
 package com.sentra.backend.web;
 
 import com.sentra.backend.billing.RepoLimitExceededException;
+import com.sentra.backend.ingestion.GitHubClient;
+import com.sentra.backend.ingestion.GitHubUrlParser;
 import com.sentra.backend.ingestion.IngestionService;
+import com.sentra.backend.ingestion.dto.PullRequestSummary;
 import com.sentra.backend.repo.RepoEntity;
 import com.sentra.backend.repo.RepoRepository;
 import com.sentra.backend.user.UserEntity;
@@ -26,6 +29,7 @@ public class RepoController {
     private final RepoRepository repoRepository;
     private final UserRepository userRepository;
     private final IngestionService ingestionService;
+    private final GitHubClient gitHubClient;
 
     @GetMapping
     public ResponseEntity<List<RepoResponse>> listRepos(@AuthenticationPrincipal Long userId) {
@@ -79,6 +83,19 @@ public class RepoController {
                 .filter(repo -> repo.getUser().getId().equals(userId))
                 .map(repo -> ResponseEntity.ok(RepoResponse.from(repo)))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/pull-requests")
+    public ResponseEntity<List<PullRequestSummary>> listPullRequests(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+
+        RepoEntity repo = repoRepository.findById(id)
+                .filter(r -> r.getUser().getId().equals(userId))
+                .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + id));
+
+        var parsed = GitHubUrlParser.parseRepoUrl(repo.getUrl());
+        return ResponseEntity.ok(gitHubClient.listPullRequests(parsed.owner(), parsed.repoName()));
     }
 
     private String parseRepoName(String url) {

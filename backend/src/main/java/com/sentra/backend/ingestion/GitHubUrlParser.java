@@ -9,6 +9,10 @@ public final class GitHubUrlParser {
             "^https://github\\.com/([\\w.-]+)/([\\w.-]+)/pull/(\\d+)/?$"
     );
 
+    private static final Pattern REPO_PATTERN = Pattern.compile(
+            "^https://github\\.com/([\\w.-]+)/([\\w.-]+?)(?:\\.git)?/?$"
+    );
+
     private GitHubUrlParser() {}
 
     public static ParsedPrUrl parsePrUrl(String url) {
@@ -26,5 +30,17 @@ public final class GitHubUrlParser {
         );
     }
 
+    public static ParsedRepoUrl parseRepoUrl(String url) {
+        Matcher matcher = REPO_PATTERN.matcher(url.strip());
+
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException(
+                    "Not a valid GitHub repo URL (expected https://github.com/owner/repo): " + url);
+        }
+
+        return new ParsedRepoUrl(matcher.group(1), matcher.group(2));
+    }
+
     public record ParsedPrUrl(String owner, String repoName, int prNumber) {}
+    public record ParsedRepoUrl(String owner, String repoName) {}
 }

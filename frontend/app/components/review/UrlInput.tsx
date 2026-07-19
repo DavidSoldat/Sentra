@@ -24,7 +24,7 @@ export function PrUrlInput({ onSubmit, isSubmitting }: PrUrlInputProps) {
 
   return (
     <form onSubmit={handleSubmit} className='flex flex-col gap-2'>
-      <div className='flex gap-2'>
+      <div className='flex gap-2 flex-col md:flzex-row'>
         <div className='flex-1 flex items-center gap-2 rounded-md border border-[#30363D] bg-[#0D1117] px-3 py-2 focus-within:border-[#316DCA]'>
           <span className='font-mono text-[#6E7681] text-sm select-none'>
             $

@@ -1,19 +1,39 @@
 'use client';
-import { useRepoStore } from '../../store/useRepoStore';
-import { useChatStore } from '../../store/useChatStore';
-import { useAuthStore } from '../../store/useAuthStore';
+import Image from 'next/image';
 import { StatusBar } from '../repo/StatusBar';
 import Link from 'next/link';
-import Image from 'next/image';
+import { useAuthStore } from '@/app/store/useAuthStore';
+import { useChatStore } from '@/app/store/useChatStore';
+import { useRepoStore } from '@/app/store/useRepoStore';
+import { useUIStore } from '@/app/store/useUiStore';
 
 export default function Nav() {
   const repo = useRepoStore((s) => s.repo);
   const reset = useRepoStore((s) => s.reset);
   const clear = useChatStore((s) => s.clear);
   const user = useAuthStore((s) => s.user);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
 
   return (
-    <header className='border-b border-[#2d333b] px-6 py-4 flex items-center gap-4 bg-[#080c10] text-[#cdd9e5]'>
+    <header className='border-b border-[#2d333b] px-4 sm:px-6 py-4 flex items-center gap-3 sm:gap-4 bg-[#080c10] text-[#cdd9e5]'>
+      <button
+        onClick={toggleSidebar}
+        aria-label='Toggle repo sidebar'
+        className='md:hidden -ml-1 flex h-8 w-8 items-center justify-center rounded-md text-[#768390] hover:bg-[#161b22] hover:text-[#cdd9e5]'
+      >
+        <svg
+          viewBox='0 0 24 24'
+          className='h-5 w-5'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='2'
+          strokeLinecap='round'
+          strokeLinejoin='round'
+        >
+          <path d='M4 6h16M4 12h16M4 18h16' />
+        </svg>
+      </button>
+
       <Link href='/' className='flex items-baseline gap-2'>
         <span className='font-mono text-lg font-medium tracking-tight'>
           <span className='text-[#316dca]'>[</span>
@@ -27,13 +47,15 @@ export default function Nav() {
 
       <div className='ml-auto flex items-center gap-3'>
         {repo && (
-          <StatusBar
-            repo={repo}
-            onReset={() => {
-              reset();
-              clear();
-            }}
-          />
+          <div className='hidden md:block'>
+            <StatusBar
+              repo={repo}
+              onReset={() => {
+                reset();
+                clear();
+              }}
+            />
+          </div>
         )}
         {user && (
           <>
@@ -46,7 +68,7 @@ export default function Nav() {
                 className='h-6 w-6 rounded-full'
               />
             )}
-            <span className='font-mono text-xs text-[#768390]'>
+            <span className='font-mono text-xs text-[#768390] hidden sm:inline'>
               {user.username}
             </span>
           </>

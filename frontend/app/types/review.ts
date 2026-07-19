@@ -37,6 +37,14 @@ export const AGENT_ORDER: AgentType[] = [
   'DOCS',
 ];
 
+export interface PullRequestSummary {
+  number: number;
+  title: string;
+  state: 'open' | 'closed';
+  htmlUrl: string;
+  createdAt: string;
+}
+
 export const AGENT_META: Record<
   AgentType,
   { label: string; icon: string; description: string }
