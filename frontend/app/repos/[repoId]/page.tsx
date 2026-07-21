@@ -1,18 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
 import { ChatPanel } from '../../components/chat/ChatPanel';
 import { RepoInput } from '../../components/repo/RepoIntpu';
 import { ReviewPanel } from '../../components/review/ReviewPanel';
 import { Tabs } from '../../components/ui/Tabs';
 import { useReview } from '../../hooks/useReview';
-import { useRepoStore } from '../../store/useRepoStore';
 import { useChatStore } from '../../store/useChatStore';
+import { useRepoStore } from '../../store/useRepoStore';
 
 export default function RepoPage() {
   const params = useParams<{ repoId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const repoId = Number(params.repoId);
 
   const repo = useRepoStore((s) => s.repo);
@@ -39,11 +40,19 @@ export default function RepoPage() {
     start: startReview,
   } = useReview(repo?.id ?? null);
 
-  const [activeTab, setActiveTab] = useState<'chat' | 'review'>('chat');
-  const [tabRepoId, setTabRepoId] = useState<number | null>(repoId);
-  if (repoId !== tabRepoId) {
-    setTabRepoId(repoId);
-    setActiveTab('chat');
+  const tabParam = searchParams.get('tab');
+  const activeTab: 'chat' | 'review' =
+    tabParam === 'review' ? 'review' : 'chat';
+
+  function setActiveTab(tab: 'chat' | 'review') {
+    const next = new URLSearchParams(searchParams.toString());
+    if (tab === 'chat') {
+      next.delete('tab');
+    } else {
+      next.set('tab', tab);
+    }
+    const query = next.toString();
+    router.replace(`/repos/${repoId}${query ? `?${query}` : ''}`);
   }
 
   const isReady = repo?.status === 'READY';
@@ -105,14 +114,16 @@ export default function RepoPage() {
               </div>
             )}
             {activeTab === 'review' && (
-              <ReviewPanel
-                repoId={repo.id}
-                review={review}
-                error={reviewError}
-                quotaError={reviewQuotaError}
-                isSubmitting={isReviewSubmitting}
-                onSubmit={startReview}
-              />
+              <div className='flex-1 min-h-0 flex flex-col overflow-y-auto'>
+                <ReviewPanel
+                  repoId={repo.id}
+                  review={review}
+                  error={reviewError}
+                  quotaError={reviewQuotaError}
+                  isSubmitting={isReviewSubmitting}
+                  onSubmit={startReview}
+                />
+              </div>
             )}
           </div>
         )}

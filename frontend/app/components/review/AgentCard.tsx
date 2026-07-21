@@ -39,7 +39,7 @@ export function AgentCard({ result }: { result: AgentResult }) {
 
   return (
     <div
-      className={`flex flex-col rounded-lg border bg-[#0D1117] max-h-120 transition-colors duration-300 ${
+      className={`flex flex-col rounded-lg border bg-[#0D1117] md:max-h-120 transition-colors duration-300 ${
         result.status === 'FAILED' ? 'border-[#F85149]/40' : 'border-[#21262D]'
       }`}
     >
@@ -58,7 +58,7 @@ export function AgentCard({ result }: { result: AgentResult }) {
         )}
       </div>
 
-      <div className='px-4 py-3 min-h-24 overflow-y-auto flex-1'>
+      <div className='px-4 py-3 min-h-24 md:overflow-y-auto flex-1'>
         {isEmpty && (
           <p className='font-mono text-[13px] text-[#6E7681]'>
             waiting on {meta.description}…

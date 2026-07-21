@@ -1,8 +1,5 @@
 import { AskResponse, QuestionResponse, Repo, User } from '../types';
-import {
-  ReviewResponse,
-  SubmitReviewRequest
-} from '../types/review';
+import { ReviewResponse, SubmitReviewRequest } from '../types/review';
 import { notifyUnauthorized } from './authEvents';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -91,6 +88,9 @@ export const api = {
 
   getQuestions: (repoId: number) =>
     request<QuestionResponse[]>(`/api/repos/${repoId}/questions`),
+
+  deleteRepo: (id: number) =>
+    request<void>(`/api/repos/${id}`, { method: 'DELETE' }),
 
   getMe: () => request<User>('/api/auth/me'),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),

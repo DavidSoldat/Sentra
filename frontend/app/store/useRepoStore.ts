@@ -15,6 +15,7 @@ interface RepoState {
   fetchRepos: () => Promise<void>;
   submit: (url: string) => Promise<Repo>;
   selectById: (id: number) => Promise<void>;
+  remove: (id: number) => Promise<void>;
   select: (repo: Repo) => void;
   reset: () => void;
   _stopPolling: () => void;
@@ -94,6 +95,14 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Repo not found' });
     }
+  },
+
+  remove: async (id) => {
+    await api.deleteRepo(id);
+    set((state) => ({
+      repos: state.repos.filter((r) => r.id !== id),
+      repo: state.repo?.id === id ? null : state.repo,
+    }));
   },
 
   submit: async (url) => {

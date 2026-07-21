@@ -1,19 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { useRepoStore } from '../../store/useRepoStore';
-import { useChatStore } from '../../store/useChatStore';
-import { useAuthStore } from '../../store/useAuthStore';
-import { Repo, RepoStatus } from '../../types';
 import { useUIStore } from '@/app/store/useUiStore';
+import { useParams, useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useChatStore } from '../../store/useChatStore';
+import { useRepoStore } from '../../store/useRepoStore';
+import { Repo } from '../../types';
+import { RepoRow } from './RepoRow';
 
-const STATUS_DOT: Record<RepoStatus, string> = {
-  PENDING: 'bg-[#768390] animate-pulse',
-  INDEXING: 'bg-[#d29922] animate-pulse',
-  READY: 'bg-[#3fb950]',
-  FAILED: 'bg-[#f85149]',
-};
+// const STATUS_DOT: Record<RepoStatus, string> = {
+//   PENDING: 'bg-[#768390] animate-pulse',
+//   INDEXING: 'bg-[#d29922] animate-pulse',
+//   READY: 'bg-[#3fb950]',
+//   FAILED: 'bg-[#f85149]',
+// };
 
 function AddRepoForm({ onDone }: { onDone: (repo: Repo) => void }) {
   const [url, setUrl] = useState('');
@@ -60,6 +61,7 @@ export function Sidebar() {
   const isLoadingRepos = useRepoStore((s) => s.isLoadingRepos);
   const reset = useRepoStore((s) => s.reset);
   const clear = useChatStore((s) => s.clear);
+  const remove = useRepoStore((s) => s.remove);
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -81,9 +83,13 @@ export function Sidebar() {
     router.push(`/repos/${repo.id}`);
   }
 
-  function handleSelect(id: number) {
-    close();
-    router.push(`/repos/${id}`);
+  async function handleDelete(id: number) {
+    const wasActive = activeRepoId === id;
+    await remove(id);
+    if (wasActive) {
+      const remaining = repos.filter((r) => r.id !== id);
+      router.replace(remaining.length > 0 ? `/repos/${remaining[0].id}` : '/');
+    }
   }
 
   return (
@@ -127,26 +133,16 @@ export function Sidebar() {
           )}
 
           <ul className='flex flex-col gap-0.5'>
-            {repos.map((r: Repo) => {
-              const isActive = activeRepoId === r.id;
-              return (
-                <li key={r.id}>
-                  <button
-                    onClick={() => handleSelect(r.id)}
-                    className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-left transition-colors ${
-                      isActive
-                        ? 'bg-[#161b22] text-[#e6edf3]'
-                        : 'text-[#768390] hover:bg-[#161b22] hover:text-[#cdd9e5]'
-                    }`}
-                  >
-                    <span
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[r.status]}`}
-                    />
-                    <span className='font-mono text-xs truncate'>{r.name}</span>
-                  </button>
-                </li>
-              );
-            })}
+            {repos.map((r: Repo) => (
+              <li key={r.id}>
+                <RepoRow
+                  repo={r}
+                  isActive={activeRepoId === r.id}
+                  onSelect={() => router.push(`/repos/${r.id}`)}
+                  onDelete={() => handleDelete(r.id)}
+                />
+              </li>
+            ))}
           </ul>
         </div>
 

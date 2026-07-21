@@ -31,7 +31,7 @@ const STATUS_CONFIG: Record<
   },
 };
 
-export function StatusBar({ repo, onReset }: StatusBarProps) {
+export function StatusBar({ repo }: StatusBarProps) {
   const config = STATUS_CONFIG[repo.status];
 
   return (
@@ -51,13 +51,6 @@ export function StatusBar({ repo, onReset }: StatusBarProps) {
           {new Date(repo.indexedAt).toLocaleTimeString()}
         </span>
       )}
-
-      <button
-        onClick={onReset}
-        className='ml-auto font-mono text-xs text-[#444c56] hover:text-[#768390] transition-colors cursor-pointer shrink-0'
-      >
-        ✕
-      </button>
     </div>
   );
 }

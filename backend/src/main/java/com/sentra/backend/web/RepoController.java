@@ -98,6 +98,20 @@ public class RepoController {
         return ResponseEntity.ok(gitHubClient.listPullRequests(parsed.owner(), parsed.repoName()));
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteRepo(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+
+        RepoEntity repo = repoRepository.findById(id)
+                .filter(r -> r.getUser().getId().equals(userId))
+                .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + id));
+
+        repoRepository.delete(repo);
+
+        return ResponseEntity.noContent().build();
+    }
+
     private String parseRepoName(String url) {
         String cleaned = url.strip().replaceAll("/$", "").replaceAll("\\.git$", "");
         String[] parts = cleaned.split("/");
