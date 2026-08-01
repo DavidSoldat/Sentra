@@ -5,6 +5,8 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { Message } from '@/app/types';
 import { ThinkingIndicator } from './ThinkingIndicator';
+import { useAuthStore } from '@/app/store/useAuthStore';
+import { useBillingStore } from '@/app/store/useBillingStore';
 
 const SUGGESTIONS = [
   'What does this project do?',
@@ -40,6 +42,9 @@ export function ChatPanel({
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+  const user = useAuthStore((s) => s.user);
+  const openUpgradeCheckout = useBillingStore((s) => s.openUpgradeCheckout);
 
   const scrollToBottom = (behavior: 'smooth' | 'auto' = 'smooth') => {
     const container = scrollContainerRef.current;
@@ -160,9 +165,8 @@ export function ChatPanel({
           </p>
           <button
             type='button'
-            disabled
-            title='Coming soon'
-            className='shrink-0 rounded-md bg-[#316dca]/40 px-3 py-1.5 font-mono text-xs text-white/70 cursor-not-allowed'
+            onClick={() => user && openUpgradeCheckout(user.id)}
+            className='shrink-0 rounded-md bg-[#316dca] px-3 py-1.5 font-mono text-xs text-white hover:bg-[#2b5faf] transition-colors'
           >
             Upgrade
           </button>

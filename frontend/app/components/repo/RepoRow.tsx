@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Repo, RepoStatus } from '../../types';
+import { ConfirmDialog } from '../ui/ConfirmCatalog';
 
 const STATUS_DOT: Record<RepoStatus, string> = {
   PENDING: 'bg-[#768390] animate-pulse',
@@ -21,6 +22,7 @@ interface RepoRowProps {
 
 export function RepoRow({ repo, isActive, onSelect, onDelete }: RepoRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -45,15 +47,14 @@ export function RepoRow({ repo, isActive, onSelect, onDelete }: RepoRowProps) {
     }
   }
 
-  function handleDelete() {
+  function handleDeleteClick() {
     setMenuOpen(false);
-    if (
-      window.confirm(
-        `Delete "${repo.name}"? This removes its chat history and reviews too.`,
-      )
-    ) {
-      onDelete();
-    }
+    setConfirmOpen(true);
+  }
+
+  function handleConfirmDelete() {
+    setConfirmOpen(false);
+    onDelete();
   }
 
   return (
@@ -103,13 +104,22 @@ export function RepoRow({ repo, isActive, onSelect, onDelete }: RepoRowProps) {
             Rename
           </button>
           <button
-            onClick={handleDelete}
+            onClick={handleDeleteClick}
             className='w-full px-3 py-1.5 text-left font-mono text-xs text-[#f85149] hover:bg-[#f85149]/10'
           >
             Delete
           </button>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmOpen}
+        title={`Delete "${repo.name}"?`}
+        description='This removes its chat history and reviews too. This can’t be undone.'
+        confirmLabel='Delete'
+        danger
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 }

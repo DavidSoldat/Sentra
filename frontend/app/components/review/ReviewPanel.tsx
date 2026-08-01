@@ -1,8 +1,10 @@
 'use client';
 
+import { useAuthStore } from '@/app/store/useAuthStore';
 import { ReviewResponse } from '../../types/review';
 import { AgentGrid } from './AgentGrid';
 import { PrSelector } from './PrSelector';
+import { useBillingStore } from '@/app/store/useBillingStore';
 
 interface QuotaExceededBody {
   error: 'quota_exceeded';
@@ -41,6 +43,9 @@ export function ReviewPanel({
   isSubmitting,
   onSubmit,
 }: ReviewPanelProps) {
+  const user = useAuthStore((s) => s.user);
+  const openUpgradeCheckout = useBillingStore((s) => s.openUpgradeCheckout);
+
   return (
     <div className='flex flex-col gap-6'>
       {quotaError ? (
@@ -56,9 +61,8 @@ export function ReviewPanel({
           </p>
           <button
             type='button'
-            disabled
-            title='Coming soon'
-            className='shrink-0 rounded-md bg-[#316dca]/40 px-3 py-1.5 font-mono text-xs text-white/70 cursor-not-allowed'
+            onClick={() => user && openUpgradeCheckout(user.id)}
+            className='shrink-0 rounded-md bg-[#316dca] px-3 py-1.5 font-mono text-xs text-white hover:bg-[#2b5faf] transition-colors'
           >
             Upgrade
           </button>

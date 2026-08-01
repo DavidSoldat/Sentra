@@ -9,13 +9,6 @@ import { useRepoStore } from '../../store/useRepoStore';
 import { Repo } from '../../types';
 import { RepoRow } from './RepoRow';
 
-// const STATUS_DOT: Record<RepoStatus, string> = {
-//   PENDING: 'bg-[#768390] animate-pulse',
-//   INDEXING: 'bg-[#d29922] animate-pulse',
-//   READY: 'bg-[#3fb950]',
-//   FAILED: 'bg-[#f85149]',
-// };
-
 function AddRepoForm({ onDone }: { onDone: (repo: Repo) => void }) {
   const [url, setUrl] = useState('');
   const submit = useRepoStore((s) => s.submit);
