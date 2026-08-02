@@ -32,5 +32,7 @@ export interface QuestionResponse {
 export interface User {
   id: number;
   username: string;
-  avatarUrl: string | null;
+  avatarUrl: string;
+  tier: 'FREE' | 'PRO';
+  cancelAt: string | null;
 }

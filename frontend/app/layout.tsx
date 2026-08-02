@@ -5,6 +5,7 @@ import Nav from './components/ui/Nav';
 import { Sidebar } from './components/repo/Sidebar';
 import { StoreSync } from './store/StoreSync';
 import { AuthGate } from './components/auth/AuthGate';
+import { BillingStatusToast } from './components/ui/BillingStatusToast';
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
@@ -26,6 +27,7 @@ export default function RootLayout({
     <html lang='en' className={jetbrainsMono.variable}>
       <body className='antialiased'>
         <StoreSync />
+        <BillingStatusToast />
         <AuthGate>
           <div className='flex flex-col h-screen'>
             <Nav />

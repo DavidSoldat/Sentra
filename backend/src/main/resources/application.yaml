@@ -59,3 +59,7 @@ logging:
   level:
     dev.sentra: DEBUG
     dev.langchain4j: INFO
+
+paddle:
+  api-key: ${PADDLE_API_KEY}
+  api-base-url: https://sandbox-api.paddle.com

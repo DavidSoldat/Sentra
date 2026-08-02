@@ -29,6 +29,7 @@ public class SubscriptionEntity {
     private String priceId;
     private String productId;
     private Instant updatedAt;
+    private Instant cancelAt;
 
     public SubscriptionEntity(UserEntity user) {
         this.user = user;

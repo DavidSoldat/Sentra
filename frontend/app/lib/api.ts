@@ -85,6 +85,7 @@ export const api = {
       createdAt: pr.created_at,
     }));
   },
+  getBillingPortalUrl: () => request<{ url: string }>('/api/billing/portal'),
 
   getQuestions: (repoId: number) =>
     request<QuestionResponse[]>(`/api/repos/${repoId}/questions`),

@@ -20,7 +20,14 @@ public record PaddleWebhookEvent(
             String status,
             @JsonProperty("customer_id") String customerId,
             @JsonProperty("custom_data") Map<String, String> customData,
-            List<PaddleItem> items
+            List<PaddleItem> items,
+            @JsonProperty("scheduled_change") ScheduledChange scheduledChange
+    ) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ScheduledChange(
+            String action,
+            @JsonProperty("effective_at") String effectiveAt
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
