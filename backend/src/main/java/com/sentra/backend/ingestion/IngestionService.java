@@ -1,9 +1,11 @@
 package com.sentra.backend.ingestion;
 
+import com.sentra.backend.ingestion.dto.IngestionProgress;
 import com.sentra.backend.ingestion.dto.TreeItem;
 import com.sentra.backend.repo.RepoEntity;
 import com.sentra.backend.repo.RepoRepository;
 import com.sentra.backend.repo.RepoStatus;
+import com.sentra.backend.web.dto.RepoResponse;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
@@ -29,6 +31,7 @@ public class IngestionService {
     private final ChunkingService chunkingService;
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
+    private final RepoSseService repoSseService;
 
     @Value("${sentra.ingestion.repo.max-files:500}")
     private int maxFiles;
@@ -56,9 +59,15 @@ public class IngestionService {
                 files = files.subList(0, maxFiles);
             }
 
+            int totalFiles = files.size();
             int chunksStored = 0;
-            for (TreeItem file : files) {
-                chunksStored += processFile(repoId, owner, repoName, file);
+            for (int i = 0; i < totalFiles; i++) {
+                chunksStored += processFile(repoId, owner, repoName, files.get(i));
+
+                int processed = i + 1;
+                if (processed % 5 == 0 || processed == totalFiles) {
+                    repoSseService.publishProgress(repoId, new IngestionProgress(processed, totalFiles));
+                }
             }
 
             log.info("Ingestion complete for repo id={}: {} total chunks stored", repoId, chunksStored);
@@ -114,11 +123,13 @@ public class IngestionService {
         repo.setStatus(RepoStatus.READY);
         repo.setIndexedAt(Instant.now());
         repoRepository.save(repo);
+        repoSseService.publish(repo.getId(), RepoResponse.from(repo));
     }
 
     protected void markFailed(RepoEntity repo) {
         repo.setStatus(RepoStatus.FAILED);
         repoRepository.save(repo);
+        repoSseService.publish(repo.getId(), RepoResponse.from(repo));
     }
 
     private String[] parseOwnerAndName(String url) {

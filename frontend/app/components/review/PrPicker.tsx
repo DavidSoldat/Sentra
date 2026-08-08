@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import { usePullRequests } from '../../hooks/usePullRequests';
+import { useMemo } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 interface PrPickerProps {
   repoId: number;
@@ -13,7 +14,23 @@ type Filter = 'open' | 'closed';
 
 export function PrPicker({ repoId, isSubmitting, onSelect }: PrPickerProps) {
   const { pullRequests, isLoading, error, refetch } = usePullRequests(repoId);
-  const [filter, setFilter] = useState<Filter>('open');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const prStateParam = searchParams.get('prState');
+  const filter: Filter = prStateParam === 'closed' ? 'closed' : 'open';
+
+  function setFilter(next: Filter) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === 'open') {
+      params.delete('prState');
+    } else {
+      params.set('prState', next);
+    }
+    const query = params.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ''}`);
+  }
 
   const filtered = useMemo(
     () => pullRequests.filter((pr) => pr.state === filter),

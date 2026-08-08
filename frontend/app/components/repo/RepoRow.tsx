@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Repo, RepoStatus } from '../../types';
 import { ConfirmDialog } from '../ui/ConfirmCatalog';
+import { RenameDialog } from '../ui/RenameDialog';
 
 const STATUS_DOT: Record<RepoStatus, string> = {
   PENDING: 'bg-[#768390] animate-pulse',
@@ -18,13 +19,21 @@ interface RepoRowProps {
   isActive: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onRename: (newName: string) => void;
 }
 
-export function RepoRow({ repo, isActive, onSelect, onDelete }: RepoRowProps) {
+export function RepoRow({
+  repo,
+  isActive,
+  onSelect,
+  onDelete,
+  onRename,
+}: RepoRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [renameOpen, setRenameOpen] = useState(false);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -50,6 +59,16 @@ export function RepoRow({ repo, isActive, onSelect, onDelete }: RepoRowProps) {
   function handleDeleteClick() {
     setMenuOpen(false);
     setConfirmOpen(true);
+  }
+
+  function handleRenameClick() {
+    setMenuOpen(false);
+    setRenameOpen(true);
+  }
+
+  function handleConfirmRename(newName: string) {
+    setRenameOpen(false);
+    onRename(newName);
   }
 
   function handleConfirmDelete() {
@@ -97,9 +116,8 @@ export function RepoRow({ repo, isActive, onSelect, onDelete }: RepoRowProps) {
           className='absolute right-1 top-full z-10 mt-1 w-32 rounded-md border border-[#2d333b] bg-[#0d1117] py-1 shadow-lg'
         >
           <button
-            disabled
-            title='Coming soon'
-            className='w-full px-3 py-1.5 text-left font-mono text-xs text-[#484f58] cursor-not-allowed'
+            onClick={handleRenameClick}
+            className='w-full px-3 py-1.5 text-left font-mono text-xs text-[#cdd9e5] hover:bg-[#161b22]'
           >
             Rename
           </button>
@@ -119,6 +137,12 @@ export function RepoRow({ repo, isActive, onSelect, onDelete }: RepoRowProps) {
         danger
         onConfirm={handleConfirmDelete}
         onCancel={() => setConfirmOpen(false)}
+      />
+      <RenameDialog
+        open={renameOpen}
+        initialName={repo.name}
+        onConfirm={handleConfirmRename}
+        onCancel={() => setRenameOpen(false)}
       />
     </div>
   );

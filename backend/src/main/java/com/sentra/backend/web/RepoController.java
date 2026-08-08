@@ -4,18 +4,23 @@ import com.sentra.backend.billing.RepoLimitExceededException;
 import com.sentra.backend.ingestion.GitHubClient;
 import com.sentra.backend.ingestion.GitHubUrlParser;
 import com.sentra.backend.ingestion.IngestionService;
+import com.sentra.backend.ingestion.RepoSseService;
 import com.sentra.backend.ingestion.dto.PullRequestSummary;
 import com.sentra.backend.repo.RepoEntity;
 import com.sentra.backend.repo.RepoRepository;
+import com.sentra.backend.repo.RepoStatus;
 import com.sentra.backend.user.UserEntity;
 import com.sentra.backend.user.UserRepository;
+import com.sentra.backend.web.dto.RenameRepoRequest;
 import com.sentra.backend.web.dto.RepoResponse;
 import com.sentra.backend.web.dto.SubmitRepoRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
@@ -30,6 +35,7 @@ public class RepoController {
     private final UserRepository userRepository;
     private final IngestionService ingestionService;
     private final GitHubClient gitHubClient;
+    private final RepoSseService repoSseService;
 
     @GetMapping
     public ResponseEntity<List<RepoResponse>> listRepos(@AuthenticationPrincipal Long userId) {
@@ -85,6 +91,19 @@ public class RepoController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping(value = "/{id}/status-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamStatus(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
+        RepoEntity repo = repoRepository.findById(id)
+             .filter(r -> r.getUser().getId().equals(userId))
+             .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + id));
+        SseEmitter emitter = repoSseService.subscribe(id);
+
+        if (repo.getStatus() == RepoStatus.READY || repo.getStatus() == RepoStatus.FAILED) {
+            repoSseService.publish(id, RepoResponse.from(repo));
+        }
+        return emitter;
+    }
+
     @GetMapping("/{id}/pull-requests")
     public ResponseEntity<List<PullRequestSummary>> listPullRequests(
             @AuthenticationPrincipal Long userId,
@@ -110,6 +129,22 @@ public class RepoController {
         repoRepository.delete(repo);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<RepoResponse> renameRepo(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id,
+            @Valid @RequestBody RenameRepoRequest request) {
+
+        RepoEntity repo = repoRepository.findById(id)
+                .filter(r -> r.getUser().getId().equals(userId))
+                .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + id));
+
+        repo.setName(request.name().trim());
+        RepoEntity saved = repoRepository.save(repo);
+
+        return ResponseEntity.ok(RepoResponse.from(saved));
     }
 
     private String parseRepoName(String url) {

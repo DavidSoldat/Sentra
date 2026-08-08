@@ -21,11 +21,16 @@ export default function RepoPage() {
   const isSubmitting = useRepoStore((s) => s.isSubmitting);
   const submit = useRepoStore((s) => s.submit);
   const selectById = useRepoStore((s) => s.selectById);
+  const indexingProgress = useRepoStore((s) => s.indexingProgress);
   const quotaError = useChatStore((s) => s.quotaError);
   const askError = useChatStore((s) => s.askError);
 
   useEffect(() => {
     if (!Number.isNaN(repoId)) selectById(repoId);
+
+    return () => {
+      useRepoStore.getState()._stopStream();
+    };
   }, [repoId, selectById]);
 
   const messages = useChatStore((s) => s.messages);
@@ -86,7 +91,9 @@ export default function RepoPage() {
                 <span className='w-1.5 h-1.5 rounded-full bg-[#d29922] animate-pulse inline-block' />
                 {repo.status === 'PENDING'
                   ? 'Queued for indexing…'
-                  : 'Reading files and building index — this takes a minute for large repos'}
+                  : indexingProgress
+                    ? `Indexing — ${indexingProgress.filesProcessed} / ${indexingProgress.totalFiles} files`
+                    : 'Reading files and building index — this takes a minute for large repos'}
               </div>
             )}
 

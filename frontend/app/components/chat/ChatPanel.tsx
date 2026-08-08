@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { ChatMessage } from './ChatMessage';
-import { ChatInput } from './ChatInput';
 import { Message } from '@/app/types';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { ChatInput } from './ChatInput';
+import { ChatMessage } from './ChatMessage';
 import { ThinkingIndicator } from './ThinkingIndicator';
-import { useAuthStore } from '@/app/store/useAuthStore';
-import { useBillingStore } from '@/app/store/useBillingStore';
 
 const SUGGESTIONS = [
   'What does this project do?',
@@ -43,8 +42,7 @@ export function ChatPanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
-  const user = useAuthStore((s) => s.user);
-  const openUpgradeCheckout = useBillingStore((s) => s.openUpgradeCheckout);
+  const router = useRouter();
 
   const scrollToBottom = (behavior: 'smooth' | 'auto' = 'smooth') => {
     const container = scrollContainerRef.current;
@@ -165,7 +163,7 @@ export function ChatPanel({
           </p>
           <button
             type='button'
-            onClick={() => user && openUpgradeCheckout(user.id)}
+            onClick={() => router.push('/pricing')}
             className='shrink-0 rounded-md bg-[#316dca] px-3 py-1.5 font-mono text-xs text-white hover:bg-[#2b5faf] transition-colors'
           >
             Upgrade

@@ -56,6 +56,7 @@ export function Sidebar() {
   const reset = useRepoStore((s) => s.reset);
   const clear = useChatStore((s) => s.clear);
   const remove = useRepoStore((s) => s.remove);
+  const rename = useRepoStore((s) => s.rename);
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -70,6 +71,9 @@ export function Sidebar() {
       reset();
       clear();
     } catch {}
+  }
+  async function handleRename(id: number, name: string) {
+    await rename(id, name);
   }
 
   async function handleManageSubscription() {
@@ -146,6 +150,7 @@ export function Sidebar() {
                   isActive={activeRepoId === r.id}
                   onSelect={() => router.push(`/repos/${r.id}`)}
                   onDelete={() => handleDelete(r.id)}
+                  onRename={(name) => handleRename(r.id, name)}
                 />
               </li>
             ))}

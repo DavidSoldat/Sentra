@@ -1,12 +1,11 @@
 'use client';
-import Image from 'next/image';
-import { StatusBar } from '../repo/StatusBar';
-import Link from 'next/link';
 import { useAuthStore } from '@/app/store/useAuthStore';
 import { useChatStore } from '@/app/store/useChatStore';
 import { useRepoStore } from '@/app/store/useRepoStore';
 import { useUIStore } from '@/app/store/useUiStore';
-import { useBillingStore } from '@/app/store/useBillingStore';
+import Image from 'next/image';
+import Link from 'next/link';
+import { StatusBar } from '../repo/StatusBar';
 import TierBadge from './TierBadge';
 
 export default function Nav() {
@@ -15,8 +14,6 @@ export default function Nav() {
   const clear = useChatStore((s) => s.clear);
   const user = useAuthStore((s) => s.user);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
-
-  const openUpgradeCheckout = useBillingStore((s) => s.openUpgradeCheckout);
 
   return (
     <header className='border-b border-[#2d333b] px-4 sm:px-6 py-4 flex items-center gap-3 sm:gap-4 bg-[#080c10] text-[#cdd9e5]'>
@@ -65,13 +62,14 @@ export default function Nav() {
           <>
             <TierBadge tier={user.tier} cancelAt={user.cancelAt} />
             {user.tier === 'FREE' && (
-              <button
-                onClick={() => openUpgradeCheckout(user.id)}
+              <Link
+                href='/pricing'
                 className='hidden sm:inline-flex rounded-md bg-[#316dca] px-3 py-1 font-mono text-xs font-medium text-white transition-colors hover:bg-[#2b5faf]'
               >
                 Upgrade
-              </button>
+              </Link>
             )}
+
             {user.avatarUrl && (
               <Image
                 src={user.avatarUrl}

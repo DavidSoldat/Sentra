@@ -93,6 +93,12 @@ export const api = {
   deleteRepo: (id: number) =>
     request<void>(`/api/repos/${id}`, { method: 'DELETE' }),
 
+  renameRepo: (id: number, name: string) =>
+    request<Repo>(`/api/repos/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    }),
+
   getMe: () => request<User>('/api/auth/me'),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
 };
