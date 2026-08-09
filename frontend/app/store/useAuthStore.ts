@@ -10,6 +10,7 @@ interface AuthState {
   sessionExpired: boolean;
   checkAuth: () => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => {
@@ -47,6 +48,11 @@ export const useAuthStore = create<AuthState>((set) => {
       } finally {
         set({ user: null, sessionExpired: false });
       }
+    },
+
+    deleteAccount: async () => {
+      await api.deleteAccount();
+      set({ user: null, sessionExpired: false });
     },
   };
 });

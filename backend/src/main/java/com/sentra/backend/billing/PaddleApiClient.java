@@ -38,4 +38,12 @@ public class PaddleApiClient {
 
         return response.data().urls().general().overview();
     }
+
+    public void cancelSubscription(String subscriptionId) {
+        restClient.post()
+                .uri("/subscriptions/{subscriptionId}/cancel", subscriptionId)
+                .body(java.util.Map.of("effective_from", "immediately"))
+                .retrieve()
+                .toBodilessEntity();
+    }
 }

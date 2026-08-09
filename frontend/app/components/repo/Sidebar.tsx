@@ -8,7 +8,6 @@ import { useChatStore } from '../../store/useChatStore';
 import { useRepoStore } from '../../store/useRepoStore';
 import { Repo } from '../../types';
 import { RepoRow } from './RepoRow';
-import { api } from '@/app/lib/api';
 
 function AddRepoForm({ onDone }: { onDone: (repo: Repo) => void }) {
   const [url, setUrl] = useState('');
@@ -60,7 +59,6 @@ export function Sidebar() {
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [isLoadingPortal, setIsLoadingPortal] = useState(false);
 
   const isOpen = useUIStore((s) => s.sidebarOpen);
   const close = useUIStore((s) => s.closeSidebar);
@@ -74,17 +72,6 @@ export function Sidebar() {
   }
   async function handleRename(id: number, name: string) {
     await rename(id, name);
-  }
-
-  async function handleManageSubscription() {
-    setIsLoadingPortal(true);
-    try {
-      const { url } = await api.getBillingPortalUrl();
-      window.location.href = url;
-    } catch (e) {
-      console.error('Failed to open billing portal', e);
-      setIsLoadingPortal(false);
-    }
   }
 
   function handleRepoCreated(repo: Repo) {
@@ -159,15 +146,13 @@ export function Sidebar() {
 
         {user && (
           <div className='mt-auto border-t border-[#2d333b] bg-[#1c1011]/60 px-3 py-3 flex flex-col gap-2'>
-            {user.tier === 'PRO' && (
-              <button
-                onClick={handleManageSubscription}
-                disabled={isLoadingPortal}
-                className='w-full rounded-md border border-[#2d333b] px-3 py-2 font-mono text-xs text-[#cdd9e5] transition-colors hover:bg-[#161b22] disabled:opacity-50'
-              >
-                {isLoadingPortal ? 'Opening…' : 'Manage subscription'}
-              </button>
-            )}
+            <button
+              onClick={() => router.push('/settings')}
+              className='w-full rounded-md border border-[#2d333b] px-3 py-2 font-mono text-xs text-[#cdd9e5] transition-colors hover:bg-[#161b22]'
+            >
+              Settings
+            </button>
+
             <button
               onClick={handleLogout}
               className='w-full rounded-md border border-[#f85149]/20 bg-[#f85149]/10 px-3 py-2 font-mono text-xs font-medium text-[#f85149] transition-colors hover:bg-[#f85149]/20 hover:text-[#ff7b72]'

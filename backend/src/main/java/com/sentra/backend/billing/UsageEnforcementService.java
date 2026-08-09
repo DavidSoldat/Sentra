@@ -1,5 +1,6 @@
 package com.sentra.backend.billing;
 
+import com.sentra.backend.billing.entity.UsageTrackingEntity;
 import com.sentra.backend.user.UserEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,13 +44,15 @@ public class UsageEnforcementService {
         usageRepo.save(usage);
     }
 
-    private UsageTrackingEntity getOrCreateCurrentPeriod(UserEntity user) {
+    @Transactional
+    public UsageTrackingEntity getOrCreateCurrentPeriod(UserEntity user) {
         UsageTrackingEntity usage = usageRepo.findById(user.getId())
                 .orElseGet(() -> new UsageTrackingEntity(user));
 
         LocalDate currentPeriod = LocalDate.now().withDayOfMonth(1);
         if (usage.getPeriodStart().isBefore(currentPeriod)) {
             usage.resetForNewPeriod(currentPeriod);
+            usageRepo.save(usage);
         }
         return usage;
     }

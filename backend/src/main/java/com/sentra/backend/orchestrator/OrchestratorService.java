@@ -11,12 +11,15 @@ import com.sentra.backend.ingestion.GitHubUrlParser;
 import com.sentra.backend.ingestion.dto.PullRequestInfo;
 import com.sentra.backend.rag.RagService;
 import com.sentra.backend.repo.RepoRepository;
+import com.sentra.backend.review.ReviewSseService;
 import com.sentra.backend.review.entity.AgentResultEntity;
 import com.sentra.backend.review.entity.ReviewEntity;
 import com.sentra.backend.review.enums.AgentResultStatus;
 import com.sentra.backend.review.enums.ReviewStatus;
 import com.sentra.backend.review.repository.AgentResultRepository;
 import com.sentra.backend.review.repository.ReviewRepository;
+import com.sentra.backend.web.dto.AgentResultResponse;
+import com.sentra.backend.web.dto.ReviewStatusUpdate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -35,6 +38,7 @@ public class OrchestratorService {
     private final AgentResultRepository agentResultRepository;
     private final GitHubClient gitHubClient;
     private final RagService ragService;
+    private final ReviewSseService reviewSseService;
 
     private final SecurityAgent securityAgent;
     private final ArchitectureAgent architectureAgent;
@@ -133,22 +137,28 @@ public class OrchestratorService {
     private void markReviewRunning(ReviewEntity review) {
         review.setStatus(ReviewStatus.RUNNING);
         reviewRepository.save(review);
+        reviewSseService.publishReviewStatus(review.getId(),
+            new ReviewStatusUpdate(review.getStatus().name(), null));
     }
 
     private void markReviewCompleted(ReviewEntity review) {
         review.setStatus(ReviewStatus.COMPLETED);
         review.setCompletedAt(Instant.now());
         reviewRepository.save(review);
+        reviewSseService.publishReviewStatus(review.getId(), new ReviewStatusUpdate(review.getStatus().name(), review.getCompletedAt()));
     }
 
     private void markReviewFailed(ReviewEntity review) {
         review.setStatus(ReviewStatus.FAILED);
         reviewRepository.save(review);
+        reviewSseService.publishReviewStatus(review.getId(),
+            new ReviewStatusUpdate(review.getStatus().name(), null));
     }
 
     private void markAgentRunning(AgentResultEntity row) {
         row.setStatus(AgentResultStatus.RUNNING);
         agentResultRepository.save(row);
+        reviewSseService.publishAgentUpdate(row.getReview().getId(), toAgentResponse(row));
     }
 
     private void markAgentDone(AgentResultEntity row, AgentResult result) {
@@ -157,11 +167,22 @@ public class OrchestratorService {
         row.setSeverity(result.severity());
         row.setCompletedAt(Instant.now());
         agentResultRepository.save(row);
+        reviewSseService.publishAgentUpdate(row.getReview().getId(), toAgentResponse(row));
     }
 
     private void markAgentFailed(AgentResultEntity row) {
         row.setStatus(AgentResultStatus.FAILED);
         row.setCompletedAt(Instant.now());
         agentResultRepository.save(row);
+        reviewSseService.publishAgentUpdate(row.getReview().getId(), toAgentResponse(row));
+    }
+
+    private AgentResultResponse toAgentResponse(AgentResultEntity row) {
+        return new AgentResultResponse(
+            row.getAgent().name(),
+            row.getStatus().name(),
+            row.getFindings(),
+            row.getSeverity() != null ? row.getSeverity().name() : null,
+            row.getCompletedAt());
     }
 }

@@ -45,6 +45,10 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       console.error('Paddle not initialized yet — cannot open checkout');
       return;
     }
+    if (useAuthStore.getState().user?.tier === 'PRO') {
+      console.warn('User is already Pro — refusing to open checkout again');
+      return;
+    }
     set({ upgradeStatus: 'idle' });
     paddle.Checkout.open({
       items: [{ priceId: PRO_PRICE_ID, quantity: 1 }],

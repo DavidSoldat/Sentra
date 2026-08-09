@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ReviewResponse } from '../types/review';
-import { getReview, ApiError, submitReview, isQuotaExceeded } from '../lib/api';
+import { AgentResult, ReviewResponse } from '../types/review';
+import { ApiError, isQuotaExceeded, submitReview } from '../lib/api';
 
 interface QuotaExceededBody {
   error: 'quota_exceeded';
@@ -9,7 +9,12 @@ interface QuotaExceededBody {
   resetsAt: string;
 }
 
-const POLL_INTERVAL_MS = 2000;
+interface ReviewStatusEvent {
+  status: string;
+  completedAt: string | null;
+}
+
+const SSE_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface UseReviewResult {
   review: ReviewResponse | null;
@@ -25,21 +30,21 @@ export function useReview(repoId: number | null): UseReviewResult {
   const [error, setError] = useState<string | null>(null);
   const [quotaError, setQuotaError] = useState<QuotaExceededBody | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const esRef = useRef<EventSource | null>(null);
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
+  const stopStream = useCallback(() => {
+    if (esRef.current) {
+      esRef.current.close();
+      esRef.current = null;
     }
   }, []);
 
   const reset = useCallback(() => {
-    stopPolling();
+    stopStream();
     setReview(null);
     setError(null);
     setQuotaError(null);
-  }, [stopPolling]);
+  }, [stopStream]);
 
   const [lastRepoId, setLastRepoId] = useState(repoId);
   if (repoId !== lastRepoId) {
@@ -50,25 +55,63 @@ export function useReview(repoId: number | null): UseReviewResult {
   }
 
   useEffect(() => {
-    stopPolling();
-  }, [repoId, stopPolling]);
+    stopStream();
+  }, [repoId, stopStream]);
 
-  const poll = useCallback(
-    (id: number) => {
-      stopPolling();
-      pollRef.current = setInterval(async () => {
-        try {
-          const res = await getReview(id);
-          setReview(res);
-          if (res.status === 'COMPLETED' || res.status === 'FAILED') {
-            stopPolling();
-          }
-        } catch (err) {
-          console.error('Review poll failed', err);
+  const startStream = useCallback(
+    (reviewId: number) => {
+      stopStream();
+
+      const es = new EventSource(
+        `${SSE_BASE_URL}/api/reviews/${reviewId}/stream`,
+        { withCredentials: true },
+      );
+
+      es.addEventListener('agent', (event) => {
+        const updated: AgentResult = JSON.parse(event.data);
+        setReview((prev) => {
+          if (!prev) return prev;
+          const exists = prev.agents.some((a) => a.agent === updated.agent);
+          return {
+            ...prev,
+            agents: exists
+              ? prev.agents.map((a) =>
+                  a.agent === updated.agent ? updated : a,
+                )
+              : [...prev.agents, updated],
+          };
+        });
+      });
+
+      es.addEventListener('review', (event) => {
+        const statusUpdate: ReviewStatusEvent = JSON.parse(event.data);
+        setReview((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: statusUpdate.status as ReviewResponse['status'],
+                completedAt: statusUpdate.completedAt,
+              }
+            : prev,
+        );
+
+        if (
+          statusUpdate.status === 'COMPLETED' ||
+          statusUpdate.status === 'FAILED'
+        ) {
+          stopStream();
         }
-      }, POLL_INTERVAL_MS);
+      });
+
+      es.onerror = () => {
+        if (es.readyState === EventSource.CLOSED) {
+          stopStream();
+        }
+      };
+
+      esRef.current = es;
     },
-    [stopPolling],
+    [stopStream],
   );
 
   const start = useCallback(
@@ -84,7 +127,7 @@ export function useReview(repoId: number | null): UseReviewResult {
         const created = await submitReview({ repoId, prUrl });
         setReview(created);
         if (created.status !== 'COMPLETED' && created.status !== 'FAILED') {
-          poll(created.id);
+          startStream(created.id);
         }
       } catch (err) {
         if (isQuotaExceeded(err)) {
@@ -100,10 +143,10 @@ export function useReview(repoId: number | null): UseReviewResult {
         setIsSubmitting(false);
       }
     },
-    [repoId, poll],
+    [repoId, startStream],
   );
 
-  useEffect(() => stopPolling, [stopPolling]);
+  useEffect(() => stopStream, [stopStream]);
 
   return { review, error, quotaError, isSubmitting, start, reset };
 }

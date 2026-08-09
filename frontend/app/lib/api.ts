@@ -99,6 +99,18 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
 
+  deleteAccount: () => request<void>('/api/auth/me', { method: 'DELETE' }),
+
+  getUsage: () =>
+    request<{
+      questionsUsed: number;
+      questionsLimit: number;
+      reviewsUsed: number;
+      reviewsLimit: number;
+      periodStart: string;
+      resetsAt: string;
+    }>('/api/settings/usage'),
+
   getMe: () => request<User>('/api/auth/me'),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
 };

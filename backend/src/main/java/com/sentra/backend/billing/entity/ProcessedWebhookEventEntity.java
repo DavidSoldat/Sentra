@@ -1,4 +1,4 @@
-package com.sentra.backend.billing;
+package com.sentra.backend.billing.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

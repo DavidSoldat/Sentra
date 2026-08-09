@@ -5,24 +5,29 @@ import com.sentra.backend.ingestion.GitHubUrlParser;
 import com.sentra.backend.orchestrator.OrchestratorService;
 import com.sentra.backend.repo.RepoEntity;
 import com.sentra.backend.repo.RepoRepository;
+import com.sentra.backend.review.ReviewSseService;
 import com.sentra.backend.review.entity.AgentResultEntity;
 import com.sentra.backend.review.entity.ReviewEntity;
 import com.sentra.backend.review.enums.AgentType;
+import com.sentra.backend.review.enums.ReviewStatus;
 import com.sentra.backend.review.repository.AgentResultRepository;
 import com.sentra.backend.review.repository.ReviewRepository;
 import com.sentra.backend.user.UserEntity;
 import com.sentra.backend.user.UserRepository;
 import com.sentra.backend.web.dto.AgentResultResponse;
 import com.sentra.backend.web.dto.ReviewResponse;
+import com.sentra.backend.web.dto.ReviewStatusUpdate;
 import com.sentra.backend.web.dto.SubmitReviewRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.Instant;
 import java.util.List;
@@ -38,6 +43,7 @@ public class ReviewController {
     private final OrchestratorService orchestratorService;
     private final UsageEnforcementService usageEnforcementService;
     private final UserRepository userRepository;
+    private final ReviewSseService reviewSseService;
 
     @PostMapping
     public ResponseEntity<ReviewResponse> submitReview(@AuthenticationPrincipal Long userId, @Valid @RequestBody SubmitReviewRequest request) {
@@ -69,11 +75,39 @@ public class ReviewController {
         return ResponseEntity.accepted().body(toResponse(review));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ReviewResponse> getReview(@PathVariable Long id) {
+    public ResponseEntity<ReviewResponse> getReview(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+
+        if (!reviewRepository.existsByIdAndRepoUserId(id, userId)) {
+            return ResponseEntity.notFound().build();
+        }
+
         return reviewRepository.findById(id)
                 .map(review -> ResponseEntity.ok(toResponse(review)))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping(value = "/{id}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamReview(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+
+        if (!reviewRepository.existsByIdAndRepoUserId(id, userId)) {
+            throw new IllegalArgumentException("Review not found: " + id);
+        }
+
+        ReviewEntity review = reviewRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Review not found: " + id));
+
+        SseEmitter emitter = reviewSseService.subscribe(id);
+
+        if (review.getStatus() == ReviewStatus.COMPLETED || review.getStatus() == ReviewStatus.FAILED) {
+            reviewSseService.publishReviewStatus(id,
+                    new ReviewStatusUpdate(review.getStatus().name(), review.getCompletedAt()));
+        }
+
+        return emitter;
     }
 
     private ReviewResponse toResponse(ReviewEntity review) {

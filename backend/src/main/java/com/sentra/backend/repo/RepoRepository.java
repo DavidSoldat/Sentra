@@ -9,4 +9,5 @@ public interface RepoRepository extends JpaRepository<RepoEntity, Long> {
     Optional<RepoEntity> findByUserIdAndUrl(Long userId, String url);
     List<RepoEntity> findAllByUserIdOrderByCreatedAtDesc(Long userId);
     long countByUserId(Long userId);
+    void deleteAllByUserId(Long userId);
 }

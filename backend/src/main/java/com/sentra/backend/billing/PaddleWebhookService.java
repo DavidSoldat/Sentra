@@ -3,6 +3,8 @@ package com.sentra.backend.billing;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sentra.backend.billing.dto.PaddleTransactionEvent;
 import com.sentra.backend.billing.dto.PaddleWebhookEvent;
+import com.sentra.backend.billing.entity.ProcessedWebhookEventEntity;
+import com.sentra.backend.billing.entity.SubscriptionEntity;
 import com.sentra.backend.user.UserEntity;
 import com.sentra.backend.user.UserRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -23,14 +25,13 @@ public class PaddleWebhookService {
     private final UserRepository userRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final ProcessedWebhookEventRepository processedEventRepository;
+    private final PaddleApiClient paddleApiClient;
 
-    public PaddleWebhookService(
-            UserRepository userRepository,
-            SubscriptionRepository subscriptionRepository,
-            ProcessedWebhookEventRepository processedEventRepository) {
+    public PaddleWebhookService(UserRepository userRepository, SubscriptionRepository subscriptionRepository, ProcessedWebhookEventRepository processedEventRepository, PaddleApiClient paddleApiClient) {
         this.userRepository = userRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.processedEventRepository = processedEventRepository;
+        this.paddleApiClient = paddleApiClient;
     }
 
     @Transactional
@@ -86,6 +87,22 @@ public class PaddleWebhookService {
         UserEntity user = userRepository.findById(userId).orElse(null);
         if (user == null) {
             log.warn("Paddle event {} referenced unknown userId {}", event.eventType(), userId);
+            return;
+        }
+
+        SubscriptionEntity existing = subscriptionRepository.findById(userId).orElse(null);
+        if (existing != null
+                && existing.getPaddleSubscriptionId() != null
+                && !existing.getPaddleSubscriptionId().equals(data.id())
+                && ACTIVE_STATUSES.contains(existing.getStatus())) {
+
+            log.warn("User {} already has active subscription {} — auto-canceling duplicate subscription {}",
+                    userId, existing.getPaddleSubscriptionId(), data.id());
+            try {
+                paddleApiClient.cancelSubscription(data.id());
+            } catch (Exception e) {
+                log.error("Failed to auto-cancel duplicate subscription {} for user {}", data.id(), userId, e);
+            }
             return;
         }
 
