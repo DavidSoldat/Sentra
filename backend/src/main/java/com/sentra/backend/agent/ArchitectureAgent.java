@@ -7,10 +7,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class ArchitectureAgent extends BaseAgent {
 
-    public ArchitectureAgent(AnthropicChatModel chatModel) {
-        super(chatModel);
-    }
-
     @Override
     public AgentType getType() {
         return AgentType.ARCHITECTURE;

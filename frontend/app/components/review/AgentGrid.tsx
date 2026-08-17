@@ -11,13 +11,23 @@ function placeholder(agent: AgentType): AgentResult {
   };
 }
 
-export function AgentGrid({ agents }: { agents: AgentResult[] }) {
+export function AgentGrid({
+  agents,
+  reviewId,
+}: {
+  agents: AgentResult[];
+  reviewId: number;
+}) {
   const byType = new Map(agents.map((a) => [a.agent, a]));
 
   return (
     <div className='grid grid-cols-1 md:grid-cols-4 gap-4 items-start'>
       {AGENT_ORDER.map((type) => (
-        <AgentCard key={type} result={byType.get(type) ?? placeholder(type)} />
+        <AgentCard
+          key={type}
+          result={byType.get(type) ?? placeholder(type)}
+          reviewId={reviewId}
+        />
       ))}
     </div>
   );

@@ -57,7 +57,7 @@ sentra:
 
 logging:
   level:
-    dev.sentra: DEBUG
+    com.sentra.backend: DEBUG
     dev.langchain4j: INFO
 
 paddle:

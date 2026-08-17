@@ -70,3 +70,10 @@ export const AGENT_META: Record<
     description: 'comments, README drift, public API docs',
   },
 };
+
+export interface AgentMessage {
+  id: number;
+  role: 'USER' | 'ASSISTANT';
+  content: string;
+  createdAt: string;
+}

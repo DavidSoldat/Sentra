@@ -4,6 +4,7 @@ import com.sentra.backend.review.enums.AgentType;
 
 import com.sentra.backend.review.enums.SeverityStatus;
 import dev.langchain4j.model.anthropic.AnthropicChatModel;
+import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -17,22 +18,16 @@ public abstract class BaseAgent {
     private static final Pattern SEVERITY_PATTERN =
             Pattern.compile("SEVERITY:\\s*(HIGH|MEDIUM|LOW|NONE)", Pattern.CASE_INSENSITIVE);
 
-    protected final AnthropicChatModel chatModel;
-
-    protected BaseAgent(AnthropicChatModel chatModel) {
-        this.chatModel = chatModel;
-    }
-
     public abstract AgentType getType();
     protected abstract String getSystemPrompt();
 
 
-    public AgentResult review(String diff, String codebaseContext) {
+    public AgentResult review(String diff, String codebaseContext, ChatModel model) {
         String prompt = buildPrompt(diff, codebaseContext);
 
         log.debug("{} agent reviewing diff ({} chars)", getType(), diff.length());
 
-        String response = chatModel.chat(prompt);
+        String response = model.chat(prompt);
 
         SeverityStatus severity = extractSeverity(response);
         String findings = stripSeverityLine(response);

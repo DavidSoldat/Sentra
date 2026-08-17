@@ -1,5 +1,6 @@
 package com.sentra.backend.user;
 
+import com.sentra.backend.ai.enums.AiModel;
 import com.sentra.backend.billing.Tier;
 import com.sentra.backend.security.EncryptedStringConverter;
 import jakarta.persistence.*;
@@ -41,6 +42,10 @@ public class UserEntity {
 
     @Enumerated(EnumType.STRING)
     private Tier tier = Tier.FREE;
+
+    @Enumerated(EnumType.STRING)
+    private AiModel preferredModel = AiModel.CLAUDE_HAIKU;
+
 
     public UserEntity(Long githubId, String username, String avatarUrl, String githubAccessToken) {
         this.githubId = githubId;

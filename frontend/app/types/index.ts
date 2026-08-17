@@ -1,4 +1,10 @@
 export type RepoStatus = 'PENDING' | 'INDEXING' | 'READY' | 'FAILED';
+export type AiModelId =
+  | 'CLAUDE_HAIKU'
+  | 'GPT_4O_MINI'
+  | 'CLAUDE_SONNET'
+  | 'GPT_4O';
+export type ModelBand = 'EFFICIENT' | 'PREMIUM';
 
 export interface Repo {
   id: number;
@@ -29,10 +35,18 @@ export interface QuestionResponse {
   createdAt: string;
 }
 
+export interface AiModelOption {
+  id: AiModelId;
+  displayName: string;
+  provider: string;
+  band: ModelBand;
+}
+
 export interface User {
   id: number;
   username: string;
   avatarUrl: string;
   tier: 'FREE' | 'PRO';
   cancelAt: string | null;
+  preferredModel: AiModelId;
 }

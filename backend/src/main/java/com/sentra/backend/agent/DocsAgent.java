@@ -7,10 +7,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class DocsAgent extends BaseAgent {
 
-    public DocsAgent(AnthropicChatModel chatModel) {
-        super(chatModel);
-    }
-
     @Override
     public AgentType getType() {
         return AgentType.DOCS;

@@ -1,5 +1,11 @@
-import { AskResponse, QuestionResponse, Repo, User } from '../types';
-import { ReviewResponse, SubmitReviewRequest } from '../types/review';
+import {
+  AiModelOption,
+  AskResponse,
+  QuestionResponse,
+  Repo,
+  User,
+} from '../types';
+import { AgentMessage, AgentType, ReviewResponse, SubmitReviewRequest } from '../types/review';
 import { notifyUnauthorized } from './authEvents';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -113,6 +119,31 @@ export const api = {
 
   getMe: () => request<User>('/api/auth/me'),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
+  getModels: () => request<AiModelOption[]>('/api/settings/models'),
+
+  updateModelPreference: (preferredModel: string) =>
+    request<void>('/api/settings/model', {
+      method: 'PUT',
+      body: JSON.stringify({ preferredModel }),
+    }),
+
+  getAgentMessages: (reviewId: number, agentType: AgentType) =>
+    request<AgentMessage[]>(
+      `/api/reviews/${reviewId}/agents/${agentType}/messages`,
+    ),
+
+  postAgentMessage: (
+    reviewId: number,
+    agentType: AgentType,
+    question: string,
+  ) =>
+    request<AgentMessage[]>(
+      `/api/reviews/${reviewId}/agents/${agentType}/messages`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ question }),
+      },
+    ),
 };
 
 export async function submitReview(

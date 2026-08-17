@@ -26,11 +26,12 @@ public class RagController {
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody AskRequest request) {
 
-        RagService.AskResponse serviceResponse = ragService.ask(id, userId, request.question());
+        AskResponse serviceResponse = ragService.ask(id, userId, request.question());
 
         return ResponseEntity.ok(new AskResponse(
                 serviceResponse.answer(),
-                serviceResponse.sources()));
+                serviceResponse.sources(),
+                serviceResponse.modelUsed()));
     }
 
     @GetMapping("/{id}/questions")

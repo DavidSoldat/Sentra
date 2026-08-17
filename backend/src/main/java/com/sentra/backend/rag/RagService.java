@@ -1,12 +1,15 @@
 package com.sentra.backend.rag;
 
+import com.sentra.backend.ai.ModelSelectionService;
 import com.sentra.backend.billing.UsageEnforcementService;
 import com.sentra.backend.repo.RepoEntity;
 import com.sentra.backend.repo.RepoRepository;
 import com.sentra.backend.repo.RepoStatus;
+import com.sentra.backend.web.dto.AskResponse;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.anthropic.AnthropicChatModel;
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
@@ -30,7 +33,7 @@ public class RagService {
 
     private final RepoRepository repoRepository;
     private final QuestionRepository questionRepository;
-    private final AnthropicChatModel chatModel;
+    private final ModelSelectionService modelSelectionService;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final EmbeddingModel embeddingModel;
     private final UsageEnforcementService usageEnforcementService;
@@ -51,12 +54,14 @@ public class RagService {
 
         usageEnforcementService.checkAndIncrementQuestions(repo.getUser());
 
+        ModelSelectionService.ResolvedModel resolved = modelSelectionService.resolveModel(repo.getUser());
+
         List<Content> repoContents = retrieveForRepo(repoId, question);
 
         log.debug("Retrieved {} chunks for repo={}", repoContents.size(), repoId);
 
         String prompt = buildPrompt(question, repoContents);
-        String answer = chatModel.chat(prompt);
+        String answer = resolved.chatModel().chat(prompt);
 
         List<String> sources = repoContents.stream()
                 .map(c -> c.textSegment().metadata().getString("file_path"))
@@ -68,7 +73,7 @@ public class RagService {
         QuestionEntity saved = questionRepository.save(new QuestionEntity(repo, question, answer));
         log.info("Q&A saved: questionId={}, repoId={}, sources={}", saved.getId(), repoId, sources);
 
-        return new AskResponse(answer, sources);
+        return new AskResponse(answer, sources, resolved.model().getDisplayName());
     }
 
     private String buildPrompt(String question, List<Content> contents) {
@@ -159,5 +164,4 @@ public class RagService {
 
 
     public record QuestionHistoryItem(Long id, String question, String answer, Instant createdAt) {}
-    public record AskResponse(String answer, List<String> sources) {}
 }

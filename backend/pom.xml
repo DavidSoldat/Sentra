@@ -84,6 +84,24 @@
 			<groupId>dev.langchain4j</groupId>
 			<artifactId>langchain4j-anthropic-spring-boot4-starter</artifactId>
 			<version>${langchain4j.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>dev.langchain4j</groupId>
+					<artifactId>langchain4j-http-client-jdk</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j-open-ai-spring-boot4-starter</artifactId>
+			<version>${langchain4j.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>dev.langchain4j</groupId>
+					<artifactId>langchain4j-http-client-jdk</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>

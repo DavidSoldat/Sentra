@@ -97,7 +97,7 @@ export function ReviewPanel({
               {overallLabel(review.status)}
             </span>
           </div>
-          <AgentGrid agents={review.agents} />
+          <AgentGrid agents={review.agents} reviewId={review.id} />
         </>
       )}
 

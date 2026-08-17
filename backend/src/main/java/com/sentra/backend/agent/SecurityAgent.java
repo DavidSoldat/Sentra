@@ -7,10 +7,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class SecurityAgent extends BaseAgent {
 
-    public SecurityAgent(AnthropicChatModel chatModel) {
-        super(chatModel);
-    }
-
     @Override
     public AgentType getType() {
         return AgentType.SECURITY;

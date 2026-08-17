@@ -1,6 +1,7 @@
 import { AGENT_META, AgentResult } from '@/app/types/review';
 import { SeverityBadge } from './SeverityBadge';
 import { FindingsText } from './FindIndexed';
+import { AgentFollowUpChat } from './AgentFollowUpChat';
 
 function StatusDot({ status }: { status: AgentResult['status'] }) {
   if (status === 'RUNNING') {
@@ -33,7 +34,13 @@ function statusLabel(status: AgentResult['status']) {
   }
 }
 
-export function AgentCard({ result }: { result: AgentResult }) {
+export function AgentCard({
+  result,
+  reviewId,
+}: {
+  result: AgentResult;
+  reviewId: number;
+}) {
   const meta = AGENT_META[result.agent];
   const isEmpty = result.status === 'PENDING';
 
@@ -87,6 +94,9 @@ export function AgentCard({ result }: { result: AgentResult }) {
             </p>
           ))}
       </div>
+      {result.status === 'DONE' && (
+        <AgentFollowUpChat reviewId={reviewId} agentType={result.agent} />
+      )}
     </div>
   );
 }

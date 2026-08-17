@@ -1,5 +1,6 @@
 package com.sentra.backend.web;
 
+import com.sentra.backend.ai.enums.AiModel;
 import com.sentra.backend.billing.entity.SubscriptionEntity;
 import com.sentra.backend.billing.SubscriptionRepository;
 import com.sentra.backend.billing.Tier;
@@ -27,8 +28,7 @@ public class AuthController {
     private final SubscriptionRepository subscriptionRepository;
     private final AccountDeletionService accountDeletionService;
 
-    public record MeResponse(Long id, String username, String avatarUrl, Tier tier, Instant cancelAt) {
-    }
+    public record MeResponse(Long id, String username, String avatarUrl, Tier tier, Instant cancelAt, AiModel preferredModel) {}
 
     @GetMapping("/me")
     public ResponseEntity<MeResponse> me(@AuthenticationPrincipal Long userId) {
@@ -39,7 +39,7 @@ public class AuthController {
                 .map(SubscriptionEntity::getCancelAt)
                 .orElse(null);
 
-        return ResponseEntity.ok(new MeResponse(user.getId(), user.getUsername(), user.getAvatarUrl(), user.getTier(), cancelAt));
+        return ResponseEntity.ok(new MeResponse(user.getId(), user.getUsername(), user.getAvatarUrl(), user.getTier(), cancelAt, user.getPreferredModel()));
     }
 
     @PostMapping("/logout")

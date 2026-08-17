@@ -7,10 +7,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class PerformanceAgent extends BaseAgent {
 
-    public PerformanceAgent(AnthropicChatModel chatModel) {
-        super(chatModel);
-    }
-
     @Override
     public AgentType getType() {
         return AgentType.PERFORMANCE;

@@ -7,6 +7,7 @@ import { useRepoStore } from '../store/useRepoStore';
 import { useChatStore } from '../store/useChatStore';
 import { api } from '../lib/api';
 import { ConfirmDialog } from '../components/ui/ConfirmCatalog';
+import { AiModelOption } from '../types';
 
 interface Usage {
   questionsUsed: number;
@@ -62,6 +63,11 @@ export default function SettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isLoadingPortal, setIsLoadingPortal] = useState(false);
+  const [models, setModels] = useState<AiModelOption[]>([]);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [savingModel, setSavingModel] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const checkAuth = useAuthStore((s) => s.checkAuth);
 
   useEffect(() => {
     api
@@ -69,6 +75,27 @@ export default function SettingsPage() {
       .then(setUsage)
       .catch(() => setUsageError('Could not load usage data.'));
   }, []);
+
+  useEffect(() => {
+    api
+      .getModels()
+      .then(setModels)
+      .catch(() => setModelsError('Could not load available models.'));
+  }, []);
+
+  async function handleSelectModel(modelId: string) {
+    if (!user || modelId === user.preferredModel) return;
+    setSavingModel(modelId);
+    setSaveError(null);
+    try {
+      await api.updateModelPreference(modelId);
+      await checkAuth();
+    } catch {
+      setSaveError('Could not update your model preference. Please try again.');
+    } finally {
+      setSavingModel(null);
+    }
+  }
 
   async function handleDelete() {
     setIsDeleting(true);
@@ -100,7 +127,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className='min-h-screen bg-[#080c10] text-[#cdd9e5] px-4 sm:px-6 py-16'>
+    <div className='h-full overflow-y-auto bg-[#080c10] text-[#cdd9e5] px-4 sm:px-6 py-16'>
       <div className='max-w-2xl mx-auto flex flex-col gap-8'>
         <h1 className='font-mono text-2xl font-medium tracking-tight'>
           <span className='text-[#316dca]'>[</span>
@@ -166,11 +193,75 @@ export default function SettingsPage() {
           </section>
         )}
 
-        <section className='border border-[#2d333b] rounded-md p-6 bg-[#0d1117] opacity-50'>
-          <h2 className='font-mono text-sm uppercase tracking-widest text-[#768390] mb-1'>
-            Model preference
-          </h2>
-          <p className='font-mono text-xs text-[#484f58]'>Coming soon.</p>
+        <section className='border border-[#2d333b] rounded-md p-6 bg-[#0d1117] flex flex-col gap-4'>
+          <div>
+            <h2 className='font-mono text-sm uppercase tracking-widest text-[#768390] mb-1'>
+              Model preference
+            </h2>
+            <p className='font-mono text-xs text-[#484f58]'>
+              Which AI model answers your questions and reviews.
+            </p>
+          </div>
+
+          {modelsError && (
+            <p className='font-mono text-xs text-[#f85149]'>{modelsError}</p>
+          )}
+          {saveError && (
+            <p className='font-mono text-xs text-[#f85149]'>{saveError}</p>
+          )}
+
+          {(['EFFICIENT', 'PREMIUM'] as const).map((band) => {
+            const bandModels = models.filter((m) => m.band === band);
+            if (bandModels.length === 0) return null;
+            const locked = band === 'PREMIUM' && user?.tier !== 'PRO';
+
+            return (
+              <div key={band} className='flex flex-col gap-2'>
+                <div className='flex items-center gap-2'>
+                  <span className='font-mono text-[11px] uppercase tracking-widest text-[#484f58]'>
+                    {band === 'EFFICIENT' ? 'Efficient' : 'Premium'}
+                  </span>
+                  {locked && (
+                    <span className='font-mono text-[10px] text-[#d29922] border border-[#d29922]/30 rounded-full px-2 py-0.5'>
+                      Pro only
+                    </span>
+                  )}
+                </div>
+
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+                  {bandModels.map((model) => {
+                    const isSelected = user?.preferredModel === model.id;
+                    const isDisabled = locked || savingModel !== null;
+
+                    return (
+                      <button
+                        key={model.id}
+                        disabled={isDisabled}
+                        onClick={() => handleSelectModel(model.id)}
+                        className={`text-left rounded-md border px-4 py-3 transition-colors ${
+                          isSelected
+                            ? 'border-[#316dca] bg-[#316dca]/10'
+                            : 'border-[#2d333b] hover:border-[#484f58]'
+                        } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <div className='flex items-center justify-between'>
+                          <span className='font-mono text-sm text-[#cdd9e5]'>
+                            {model.displayName}
+                          </span>
+                          {isSelected && (
+                            <span className='text-[#316dca] text-xs'>✓</span>
+                          )}
+                        </div>
+                        <span className='font-mono text-[11px] text-[#484f58]'>
+                          {model.provider}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </section>
 
         <section className='border border-[#6e2b2b] rounded-md p-6 bg-[#1c1011] flex flex-col gap-3'>
