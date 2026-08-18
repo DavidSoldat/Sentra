@@ -43,6 +43,7 @@ export default function RepoPage() {
     quotaError: reviewQuotaError,
     isSubmitting: isReviewSubmitting,
     start: startReview,
+    loadReview,
   } = useReview(repo?.id ?? null);
 
   const tabParam = searchParams.get('tab');
@@ -129,6 +130,7 @@ export default function RepoPage() {
                   quotaError={reviewQuotaError}
                   isSubmitting={isReviewSubmitting}
                   onSubmit={startReview}
+                  onSelectReview={loadReview}
                 />
               </div>
             )}

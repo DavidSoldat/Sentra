@@ -1,9 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ReviewResponse } from '../../types/review';
+import { useEffect, useState } from 'react';
+import { ReviewResponse, ReviewSummary } from '../../types/review';
 import { AgentGrid } from './AgentGrid';
 import { PrSelector } from './PrSelector';
+import { api } from '@/app/lib/api';
 
 interface QuotaExceededBody {
   error: 'quota_exceeded';
@@ -32,6 +34,7 @@ interface ReviewPanelProps {
   quotaError: QuotaExceededBody | null;
   isSubmitting: boolean;
   onSubmit: (prUrl: string) => void;
+  onSelectReview: (reviewId: number) => void;
 }
 
 export function ReviewPanel({
@@ -41,8 +44,19 @@ export function ReviewPanel({
   quotaError,
   isSubmitting,
   onSubmit,
+  onSelectReview,
 }: ReviewPanelProps) {
   const router = useRouter();
+  const [history, setHistory] = useState<ReviewSummary[]>([]);
+
+  useEffect(() => {
+    if (!review) {
+      api
+        .getRepoReviews(repoId)
+        .then(setHistory)
+        .catch(() => {});
+    }
+  }, [repoId, review]);
 
   return (
     <div className='flex flex-col gap-6'>
@@ -66,11 +80,41 @@ export function ReviewPanel({
           </button>
         </div>
       ) : (
-        <PrSelector
-          repoId={repoId}
-          isSubmitting={isSubmitting}
-          onSubmit={onSubmit}
-        />
+        // <PrSelector
+        //   repoId={repoId}
+        //   isSubmitting={isSubmitting}
+        //   onSubmit={onSubmit}
+        // />
+        <>
+          <PrSelector
+            repoId={repoId}
+            isSubmitting={isSubmitting}
+            onSubmit={onSubmit}
+          />
+          {!review && history.length > 0 && (
+            <div className='flex flex-col gap-2'>
+              <p className='font-mono text-sm text-[#6E7681]'>
+                Previously reviewed
+              </p>
+              {history.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => onSelectReview(r.id)}
+                  className='w-full flex items-center justify-between rounded-md border border-[#30363D] bg-[#OD1117] px-3 py-2 text-left hover:border-[#316DCA] transition-colors'
+                >
+                  <span className='font-mono text-sm text-[#CDD9E5] truncate'>
+                    {r.prTitle ?? r.prUrl}
+                  </span>
+                  <span className='font-mono text-[11px] text-[#6E7681] shrink-0 ml-3'>
+                    {r.status === 'FAILED'
+                      ? 'Failed'
+                      : new Date(r.createdAt).toLocaleDateString()}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {!quotaError && error && (

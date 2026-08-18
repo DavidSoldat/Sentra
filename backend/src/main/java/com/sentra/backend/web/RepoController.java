@@ -9,10 +9,12 @@ import com.sentra.backend.ingestion.dto.PullRequestSummary;
 import com.sentra.backend.repo.RepoEntity;
 import com.sentra.backend.repo.RepoRepository;
 import com.sentra.backend.repo.RepoStatus;
+import com.sentra.backend.review.repository.ReviewRepository;
 import com.sentra.backend.user.UserEntity;
 import com.sentra.backend.user.UserRepository;
 import com.sentra.backend.web.dto.RenameRepoRequest;
 import com.sentra.backend.web.dto.RepoResponse;
+import com.sentra.backend.web.dto.ReviewSummaryResponse;
 import com.sentra.backend.web.dto.SubmitRepoRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ public class RepoController {
     private final IngestionService ingestionService;
     private final GitHubClient gitHubClient;
     private final RepoSseService repoSseService;
+    private final ReviewRepository reviewRepository;
 
     @GetMapping
     public ResponseEntity<List<RepoResponse>> listRepos(@AuthenticationPrincipal Long userId) {
@@ -115,6 +118,26 @@ public class RepoController {
 
         var parsed = GitHubUrlParser.parseRepoUrl(repo.getUrl());
         return ResponseEntity.ok(gitHubClient.listPullRequests(parsed.owner(), parsed.repoName()));
+    }
+
+    @GetMapping("/{id}/reviews")
+    public ResponseEntity<List<ReviewSummaryResponse>> listReviews(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+
+        if(!repoRepository.existsById(id)) {
+            throw new IllegalArgumentException("Repo not found: " + id);
+        }
+
+        RepoEntity repo = repoRepository.findById(id).filter(r -> r.getUser().getId().equals(userId))
+                .orElseThrow(() -> new IllegalArgumentException("Repo not found " + id));
+
+        List<ReviewSummaryResponse> reviews = reviewRepository.findByRepoIdOrderByCreatedAtDesc(id).stream()
+                .map(r -> new ReviewSummaryResponse(
+                        r.getId(), r.getPrUrl(), r.getPrTitle(), r.getPrNumber(), r.getStatus().name(), r.getCreatedAt(), r.getCompletedAt()
+                )).toList();
+
+        return ResponseEntity.ok(reviews);
     }
 
     @DeleteMapping("/{id}")

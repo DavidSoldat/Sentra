@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AgentResult, ReviewResponse } from '../types/review';
-import { ApiError, isQuotaExceeded, submitReview } from '../lib/api';
+import { ApiError, getReview, isQuotaExceeded, submitReview } from '../lib/api';
 
 interface QuotaExceededBody {
   error: 'quota_exceeded';
@@ -22,6 +22,7 @@ interface UseReviewResult {
   quotaError: QuotaExceededBody | null;
   isSubmitting: boolean;
   start: (prUrl: string) => Promise<void>;
+  loadReview: (reviewId: number) => Promise<void>;
   reset: () => void;
 }
 
@@ -146,7 +147,26 @@ export function useReview(repoId: number | null): UseReviewResult {
     [repoId, startStream],
   );
 
+  const loadReview = useCallback(
+    async (reviewId: number) => {
+      setError(null);
+      setQuotaError(null);
+      try {
+        const data = await getReview(reviewId);
+        setReview(data);
+        if (data.status !== 'COMPLETED' && data.status !== 'FAILED') {
+          startStream(reviewId);
+        }
+      } catch (err) {
+        setError(
+          err instanceof ApiError ? err.message : "Couldn't load that review.",
+        );
+      }
+    },
+    [startStream],
+  );
+
   useEffect(() => stopStream, [stopStream]);
 
-  return { review, error, quotaError, isSubmitting, start, reset };
+  return { review, error, quotaError, isSubmitting, start, loadReview, reset };
 }

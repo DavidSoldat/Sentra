@@ -6,10 +6,17 @@ export type AgentResultStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED';
 
 export type Severity = 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
 
+export const AGENT_ORDER: AgentType[] = [
+  'SECURITY',
+  'ARCHITECTURE',
+  'PERFORMANCE',
+  'DOCS',
+];
+
 export interface AgentResult {
   agent: AgentType;
   status: AgentResultStatus;
-  findings: string | null; // markdown text
+  findings: string | null;
   severity: Severity | null;
   completedAt: string | null;
 }
@@ -30,19 +37,22 @@ export interface SubmitReviewRequest {
   prUrl: string;
 }
 
-export const AGENT_ORDER: AgentType[] = [
-  'SECURITY',
-  'ARCHITECTURE',
-  'PERFORMANCE',
-  'DOCS',
-];
-
 export interface PullRequestSummary {
   number: number;
   title: string;
   state: 'open' | 'closed';
   htmlUrl: string;
   createdAt: string;
+}
+
+export interface ReviewSummary {
+  id: number;
+  prUrl: string;
+  prTitle: string | null;
+  prNumber: number;
+  status: ReviewStatus;
+  createdAt: string;
+  completedAt: string | null;
 }
 
 export const AGENT_META: Record<

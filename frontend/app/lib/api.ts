@@ -5,7 +5,13 @@ import {
   Repo,
   User,
 } from '../types';
-import { AgentMessage, AgentType, ReviewResponse, SubmitReviewRequest } from '../types/review';
+import {
+  AgentMessage,
+  AgentType,
+  ReviewResponse,
+  ReviewSummary,
+  SubmitReviewRequest,
+} from '../types/review';
 import { notifyUnauthorized } from './authEvents';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -126,6 +132,9 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ preferredModel }),
     }),
+
+  getRepoReviews: (repoId: number) =>
+    request<ReviewSummary[]>(`/api/repos/${repoId}/reviews`),
 
   getAgentMessages: (reviewId: number, agentType: AgentType) =>
     request<AgentMessage[]>(

@@ -1,19 +1,28 @@
 'use client';
 
 import { usePullRequests } from '../../hooks/usePullRequests';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ReviewSummary } from '@/app/types/review';
+import { api } from '@/app/lib/api';
 
 interface PrPickerProps {
   repoId: number;
   isSubmitting: boolean;
   onSelect: (prUrl: string) => void;
+  onSelectReview: (reviewId: number) => void;
 }
 
 type Filter = 'open' | 'closed';
 
-export function PrPicker({ repoId, isSubmitting, onSelect }: PrPickerProps) {
+export function PrPicker({
+  repoId,
+  isSubmitting,
+  onSelect,
+  onSelectReview,
+}: PrPickerProps) {
   const { pullRequests, isLoading, error, refetch } = usePullRequests(repoId);
+  const [history, setHistory] = useState<ReviewSummary[]>([]);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -31,6 +40,13 @@ export function PrPicker({ repoId, isSubmitting, onSelect }: PrPickerProps) {
     const query = params.toString();
     router.replace(`${pathname}${query ? `?${query}` : ''}`);
   }
+
+  useEffect(() => {
+    api
+      .getRepoReviews(repoId)
+      .then(setHistory)
+      .catch(() => {});
+  }, [repoId]);
 
   const filtered = useMemo(
     () => pullRequests.filter((pr) => pr.state === filter),
@@ -92,7 +108,7 @@ export function PrPicker({ repoId, isSubmitting, onSelect }: PrPickerProps) {
                 className='w-full flex items-center gap-2 rounded-md border border-[#30363D] bg-[#0D1117] px-3 py-2 text-left transition-colors hover:border-[#316DCA] disabled:cursor-not-allowed disabled:opacity-50'
               >
                 <span className='font-mono text-xs text-[#6E7681] shrink-0'>
-                  #{pr.number}
+                  # {pr.number}
                 </span>
                 <span className='font-mono text-sm text-[#CDD9E5] truncate'>
                   {pr.title}
@@ -101,6 +117,32 @@ export function PrPicker({ repoId, isSubmitting, onSelect }: PrPickerProps) {
             </li>
           ))}
         </ul>
+      )}
+
+      {history.length > 0 && (
+        <div className='flex flex-col gap-1.5 pt-2 mt-1 border-t border-[#21262D]'>
+          <p className='font-mono text-[11px] uppercase tracking-widest text-[#484F57] pt-1'>
+            Past reviews
+          </p>
+          <ul className='flex flex-col gap-1.5 max-h-80 overflow-y-auto'>
+            {history.map((r) => (
+              <li key={r.id}>
+                <button
+                  type='button'
+                  className='w-full flx items-center gap-2 rounded-md border border-[#30363D bg-[#0D1117] px-3 py-2 text-left transition-colors hover:border-[#316DCA] '
+                  onClick={() => onSelectReview(r.id)}
+                >
+                  <span className='font-mono text-xs text-[#6E7681] shrink-0'>
+                    # {r.prNumber}
+                  </span>
+                  <span className='font-mono text-sm text-[#CDD9E5] truncate'>
+                    {r.prTitle ?? r.prUrl}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
