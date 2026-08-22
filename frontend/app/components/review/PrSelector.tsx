@@ -8,12 +8,14 @@ interface PrSelectorProps {
   repoId: number;
   isSubmitting: boolean;
   onSubmit: (prUrl: string) => void;
+  onSelectReview: (reviewId: number) => void;
 }
 
 export function PrSelector({
   repoId,
   isSubmitting,
   onSubmit,
+  onSelectReview,
 }: PrSelectorProps) {
   const [mode, setMode] = useState<'picker' | 'manual'>('picker');
 
@@ -24,6 +26,7 @@ export function PrSelector({
           repoId={repoId}
           isSubmitting={isSubmitting}
           onSelect={onSubmit}
+          onSelectReview={onSelectReview}
         />
       ) : (
         <PrUrlInput onSubmit={onSubmit} isSubmitting={isSubmitting} />

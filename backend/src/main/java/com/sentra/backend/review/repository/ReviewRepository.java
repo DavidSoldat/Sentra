@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ReviewRepository extends JpaRepository<ReviewEntity, Long> {
     boolean existsByIdAndRepoUserId(Long id, Long userId);
@@ -14,4 +15,5 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, Long> {
     @Query("select r.repo.user.id from ReviewEntity r where r.id = :reviewId")
     Long findOwnerIdByReviewId(@Param("reviewId") Long reviewId);
     List<ReviewEntity> findByRepoIdOrderByCreatedAtDesc(Long repoId);
+    Optional<ReviewEntity> findFirstByRepoIdAndPrNumberOrderByCreatedAtDesc(Long repoId, Integer prNumber);
 }

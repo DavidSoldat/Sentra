@@ -38,12 +38,10 @@ export default function RepoPage() {
   const ask = useChatStore((s) => s.ask);
 
   const {
-    review,
     error: reviewError,
     quotaError: reviewQuotaError,
     isSubmitting: isReviewSubmitting,
     start: startReview,
-    loadReview,
   } = useReview(repo?.id ?? null);
 
   const tabParam = searchParams.get('tab');
@@ -66,6 +64,17 @@ export default function RepoPage() {
   async function handleSubmit(url: string) {
     const newRepo = await submit(url);
     router.push(`/repos/${newRepo.id}`);
+  }
+
+  async function handleReviewSubmit(prUrl: string) {
+    const created = await startReview(prUrl);
+    if (created) {
+      router.push(`/repos/${repoId}/reviews/${created.id}`);
+    }
+  }
+
+  function handleSelectReview(reviewId: number) {
+    router.push(`/repos/${repoId}/reviews/${reviewId}`);
   }
 
   return (
@@ -125,12 +134,11 @@ export default function RepoPage() {
               <div className='flex-1 min-h-0 flex flex-col overflow-y-auto'>
                 <ReviewPanel
                   repoId={repo.id}
-                  review={review}
                   error={reviewError}
                   quotaError={reviewQuotaError}
                   isSubmitting={isReviewSubmitting}
-                  onSubmit={startReview}
-                  onSelectReview={loadReview}
+                  onSubmit={handleReviewSubmit}
+                  onSelectReview={handleSelectReview}
                 />
               </div>
             )}

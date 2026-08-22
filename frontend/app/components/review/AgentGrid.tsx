@@ -21,7 +21,7 @@ export function AgentGrid({
   const byType = new Map(agents.map((a) => [a.agent, a]));
 
   return (
-    <div className='grid grid-cols-1 md:grid-cols-4 gap-4 items-start'>
+    <div className='grid grid-cols-1 md:grid-cols-2 gap-6 items-start'>
       {AGENT_ORDER.map((type) => (
         <AgentCard
           key={type}

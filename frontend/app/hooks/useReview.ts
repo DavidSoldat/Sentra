@@ -21,7 +21,7 @@ interface UseReviewResult {
   error: string | null;
   quotaError: QuotaExceededBody | null;
   isSubmitting: boolean;
-  start: (prUrl: string) => Promise<void>;
+  start: (prUrl: string) => Promise<ReviewResponse | null>;
   loadReview: (reviewId: number) => Promise<void>;
   reset: () => void;
 }
@@ -116,10 +116,10 @@ export function useReview(repoId: number | null): UseReviewResult {
   );
 
   const start = useCallback(
-    async (prUrl: string) => {
+    async (prUrl: string): Promise<ReviewResponse | null> => {
       if (repoId == null) {
         setError('No repo selected.');
-        return;
+        return null;
       }
       setError(null);
       setQuotaError(null);
@@ -130,6 +130,7 @@ export function useReview(repoId: number | null): UseReviewResult {
         if (created.status !== 'COMPLETED' && created.status !== 'FAILED') {
           startStream(created.id);
         }
+        return created;
       } catch (err) {
         if (isQuotaExceeded(err)) {
           setQuotaError(err.body);
@@ -140,6 +141,7 @@ export function useReview(repoId: number | null): UseReviewResult {
               : "Couldn't start the review. Check the backend is running.";
           setError(message);
         }
+        return null;
       } finally {
         setIsSubmitting(false);
       }

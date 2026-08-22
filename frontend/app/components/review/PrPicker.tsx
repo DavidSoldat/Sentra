@@ -53,6 +53,22 @@ export function PrPicker({
     [pullRequests, filter],
   );
 
+  const reviewByPrNumber = useMemo(() => {
+    const map = new Map<number, ReviewSummary>();
+    for (const r of history) {
+      if (!map.has(r.prNumber)) map.set(r.prNumber, r);
+    }
+    return map;
+  }, [history]);
+
+  const orphanedHistory = useMemo(
+    () =>
+      history.filter(
+        (r) => !pullRequests.some((pr) => pr.number === r.prNumber),
+      ),
+    [history, pullRequests],
+  );
+
   return (
     <div className='flex flex-col gap-3'>
       <div className='flex items-center gap-2'>
@@ -99,41 +115,54 @@ export function PrPicker({
 
       {!isLoading && filtered.length > 0 && (
         <ul className='flex flex-col gap-1.5 max-h-80 overflow-y-auto'>
-          {filtered.map((pr) => (
-            <li key={pr.number}>
-              <button
-                type='button'
-                disabled={isSubmitting}
-                onClick={() => onSelect(pr.htmlUrl)}
-                className='w-full flex items-center gap-2 rounded-md border border-[#30363D] bg-[#0D1117] px-3 py-2 text-left transition-colors hover:border-[#316DCA] disabled:cursor-not-allowed disabled:opacity-50'
-              >
-                <span className='font-mono text-xs text-[#6E7681] shrink-0'>
-                  # {pr.number}
-                </span>
-                <span className='font-mono text-sm text-[#CDD9E5] truncate'>
-                  {pr.title}
-                </span>
-              </button>
-            </li>
-          ))}
+          {filtered.map((pr) => {
+            const existingReview = reviewByPrNumber.get(pr.number);
+
+            return (
+              <li key={pr.number}>
+                <button
+                  type='button'
+                  disabled={isSubmitting}
+                  onClick={() =>
+                    existingReview
+                      ? onSelectReview(existingReview.id)
+                      : onSelect(pr.htmlUrl)
+                  }
+                  className='w-full flex items-center gap-2 rounded-md border border-[#30363D] bg-[#0D1117] px-3 py-2 text-left transition-colors hover:border-[#316DCA] disabled:cursor-not-allowed disabled:opacity-50'
+                >
+                  <span className='font-mono text-xs text-[#6E7681] shrink-0'>
+                    #{pr.number}
+                  </span>
+                  <span className='font-mono text-sm text-[#CDD9E5] truncate flex-1'>
+                    {pr.title}
+                  </span>
+                  {existingReview && (
+                    <span className='font-mono text-[10px] text-[#3fb950] border border-[#3fb950]/30 rounded-full px-2 py-0.5 shrink-0'>
+                      Reviewed
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      {history.length > 0 && (
+      {orphanedHistory.length > 0 && (
         <div className='flex flex-col gap-1.5 pt-2 mt-1 border-t border-[#21262D]'>
           <p className='font-mono text-[11px] uppercase tracking-widest text-[#484F57] pt-1'>
-            Past reviews
+            Other past reviews
           </p>
           <ul className='flex flex-col gap-1.5 max-h-80 overflow-y-auto'>
-            {history.map((r) => (
+            {orphanedHistory.map((r) => (
               <li key={r.id}>
                 <button
                   type='button'
-                  className='w-full flx items-center gap-2 rounded-md border border-[#30363D bg-[#0D1117] px-3 py-2 text-left transition-colors hover:border-[#316DCA] '
+                  className='w-full flex items-center gap-2 rounded-md border border-[#30363D] bg-[#0D1117] px-3 py-2 text-left transition-colors hover:border-[#316DCA]'
                   onClick={() => onSelectReview(r.id)}
                 >
                   <span className='font-mono text-xs text-[#6E7681] shrink-0'>
-                    # {r.prNumber}
+                    #{r.prNumber}
                   </span>
                   <span className='font-mono text-sm text-[#CDD9E5] truncate'>
                     {r.prTitle ?? r.prUrl}

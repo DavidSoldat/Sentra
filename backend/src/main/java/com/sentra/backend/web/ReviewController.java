@@ -31,6 +31,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/reviews")
@@ -55,6 +56,13 @@ public class ReviewController {
                         "Repo %s is not indexed yet. Index it first via POST /api/repos before requesting a PR review."
                                 .formatted(repoUrl)));
 
+        Optional<ReviewEntity> existing = reviewRepository
+                .findFirstByRepoIdAndPrNumberOrderByCreatedAtDesc(repo.getId(), parsed.prNumber());
+
+        if (existing.isPresent() && existing.get().getStatus() != ReviewStatus.FAILED) {
+            return ResponseEntity.ok(toResponse(existing.get()));
+        }
+
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
@@ -75,6 +83,7 @@ public class ReviewController {
         return ResponseEntity.accepted().body(toResponse(review));
     }
 
+    @GetMapping("/{id}")
     public ResponseEntity<ReviewResponse> getReview(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long id) {
