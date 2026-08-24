@@ -51,7 +51,10 @@ public class ReviewSseService {
                 if (terminal) emitter.complete();
             } catch (IOException | IllegalStateException e) {
                 log.debug("Dropping dead SSE emitter for review {}", reviewId);
-                emitter.completeWithError(e);
+                try {
+                    emitter.completeWithError(e);
+                } catch (Exception ignored) {
+                }
             }
         }
 

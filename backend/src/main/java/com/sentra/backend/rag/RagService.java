@@ -7,9 +7,15 @@ import com.sentra.backend.repo.RepoRepository;
 import com.sentra.backend.repo.RepoStatus;
 import com.sentra.backend.web.dto.AskResponse;
 import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.anthropic.AnthropicChatModel;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
@@ -20,10 +26,15 @@ import dev.langchain4j.store.embedding.filter.MetadataFilterBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -40,6 +51,9 @@ public class RagService {
 
     @Value("${sentra.rag.top-k}")
     private int topK;
+
+    @Value("${sentra.rag.history-limit:5}")
+    private int historyLimit;
 
     @Transactional
     public AskResponse ask(Long repoId, Long userId, String question) {
@@ -60,8 +74,9 @@ public class RagService {
 
         log.debug("Retrieved {} chunks for repo={}", repoContents.size(), repoId);
 
-        String prompt = buildPrompt(question, repoContents);
-        String answer = resolved.chatModel().chat(prompt);
+        List<ChatMessage> messages = buildMessages(repoId, question, repoContents);
+        ChatResponse response = resolved.chatModel().chat(messages);
+        String answer = response.aiMessage().text();
 
         List<String> sources = repoContents.stream()
                 .map(c -> c.textSegment().metadata().getString("file_path"))
@@ -76,23 +91,40 @@ public class RagService {
         return new AskResponse(answer, sources, resolved.model().getDisplayName());
     }
 
-    private String buildPrompt(String question, List<Content> contents) {
+    private List<ChatMessage> buildMessages(Long repoId, String question, List<Content> contents) {
+        List<ChatMessage> messages = new ArrayList<>();
+        messages.add(SystemMessage.from(buildSystemPrompt(contents)));
+
+        List<QuestionEntity> recent = questionRepository.findByRepoIdOrderByCreatedAtDesc(
+                repoId, PageRequest.of(0, historyLimit));
+        Collections.reverse(recent);
+
+        for (QuestionEntity q : recent) {
+            messages.add(UserMessage.from(q.getQuestion()));
+            messages.add(AiMessage.from(q.getAnswer()));
+        }
+
+        messages.add(UserMessage.from(question));
+        return messages;
+    }
+
+    private String buildSystemPrompt(List<Content> contents) {
         StringBuilder sb = new StringBuilder();
 
         sb.append("""
-                You are a codebase assistant. Answer questions about the code below accurately and concisely.
-                If the answer is not evident from the provided code context, say so — do not guess.
-                When referencing specific code, cite the file path and approximate line numbers.
-                """);
+            You are a codebase assistant. Answer questions about the code below accurately and concisely.
+            If the answer is not evident from the provided code context, say so — do not guess.
+            When referencing specific code, cite the file path and approximate line numbers.
+            """);
 
         if (contents.isEmpty()) {
             sb.append("""
-                This repository has already been indexed and searched automatically for this question.
-                No code relevant to it was found, which most likely means the codebase does not
-                contain anything related to this topic. State that plainly and directly —
-                do not ask the user to paste or share code, since you already have full access
-                to search it yourself.
-                """);
+            This repository has already been indexed and searched automatically for this question.
+            No code relevant to it was found, which most likely means the codebase does not
+            contain anything related to this topic. State that plainly and directly —
+            do not ask the user to paste or share code, since you already have full access
+            to search it yourself.
+            """);
         } else {
             sb.append("--- CODE CONTEXT ---\n");
             for (Content content : contents) {
@@ -107,8 +139,6 @@ public class RagService {
             }
             sb.append("--- END CONTEXT ---\n\n");
         }
-
-        sb.append("Question: ").append(question);
 
         return sb.toString();
     }
@@ -162,6 +192,77 @@ public class RagService {
                 .toList();
     }
 
+    @Transactional
+    public void streamAnswer(Long repoId, Long userId, String question, SseEmitter emitter) {
+        RepoEntity repo = repoRepository.findById(repoId)
+                .filter(r -> r.getUser().getId().equals(userId))
+                .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + repoId));
 
-    public record QuestionHistoryItem(Long id, String question, String answer, Instant createdAt) {}
+        if (repo.getStatus() != RepoStatus.READY) {
+            throw new IllegalStateException(
+                    "Repo %d is not ready for querying (status: %s)".formatted(repoId, repo.getStatus()));
+        }
+
+        usageEnforcementService.checkAndIncrementQuestions(repo.getUser());
+
+        var resolved = modelSelectionService.resolveStreamingModel(repo.getUser());
+
+        List<Content> repoContents = retrieveForRepo(repoId, question);
+        List<ChatMessage> messages = buildMessages(repoId, question, repoContents);
+        List<String> sources = repoContents.stream()
+                .map(c -> c.textSegment().metadata().getString("file_path"))
+                .filter(path -> path != null && !path.isBlank())
+                .distinct()
+                .sorted()
+                .toList();
+
+        StringBuilder fullAnswer = new StringBuilder();
+
+        resolved.chatModel().chat(messages, new StreamingChatResponseHandler() {
+            @Override
+            public void onPartialResponse(String token) {
+                fullAnswer.append(token);
+                try {
+                    emitter.send(SseEmitter.event().name("token").data(token));
+                } catch (IOException | IllegalStateException e) {
+                    log.debug("Dropping dead SSE emitter for repo {}", repoId);
+                    try {
+                        emitter.completeWithError(e);
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+
+            @Override
+            public void onCompleteResponse(ChatResponse response) {
+                String answer = fullAnswer.toString();
+                questionRepository.save(new QuestionEntity(repo, question, answer));
+                log.info("Streamed Q&A saved: repoId={}, modelUsed={}", repoId, resolved.model());
+
+                try {
+                    emitter.send(SseEmitter.event().name("done")
+                            .data(new StreamDoneEvent(sources, resolved.model().getDisplayName())));
+                    emitter.complete();
+                } catch (IOException | IllegalStateException e) {
+                    try {
+                        emitter.completeWithError(e);
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+
+            @Override
+            public void onError(Throwable error) {
+                log.error("Streaming chat failed for repo {}", repoId, error);
+                emitter.completeWithError(error);
+            }
+        });
+    }
+
+    public record StreamDoneEvent(List<String> sources, String modelUsed) {
+    }
+
+
+    public record QuestionHistoryItem(Long id, String question, String answer, Instant createdAt) {
+    }
 }

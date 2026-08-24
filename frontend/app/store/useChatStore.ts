@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Message } from '../types';
 import { api, isQuotaExceeded } from '../lib/api';
 import { useRepoStore } from './useRepoStore';
+import { streamSSE } from '../lib/sse';
 
 interface QuotaExceededBody {
   error: 'quota_exceeded';
@@ -69,33 +70,76 @@ export const useChatStore = create<ChatState>((set, get) => ({
       content: question.trim(),
       timestamp: new Date(),
     };
+    const assistantMsgId = crypto.randomUUID();
+    const assistantMsg: Message = {
+      id: assistantMsgId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    };
+
     set((state) => ({
-      messages: [...state.messages, userMsg],
+      messages: [...state.messages, userMsg, assistantMsg],
       isAsking: true,
       quotaError: null,
       askError: null,
     }));
 
+    let queue = '';
+    let revealed = '';
+    let frameId: number | null = null;
+
     try {
-      const data = await api.ask(repoId, question.trim());
-      const assistantMsg: Message = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: data.answer,
-        sources: data.sources,
-        timestamp: new Date(),
-      };
-      set((state) => ({ messages: [...state.messages, assistantMsg] }));
+      const path = `/api/repos/${repoId}/ask-stream?question=${encodeURIComponent(question.trim())}`;
+
+      function tick() {
+        if (queue.length === 0) {
+          frameId = null;
+          return;
+        }
+        const next = queue.slice(0, 2);
+        queue = queue.slice(2);
+        revealed += next;
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === assistantMsgId ? { ...m, content: revealed } : m,
+          ),
+        }));
+        frameId = requestAnimationFrame(tick);
+      }
+
+      await streamSSE(path, {
+        onEvent: (eventName, data) => {
+          if (eventName === 'token') {
+            queue += data;
+            if (frameId === null) frameId = requestAnimationFrame(tick);
+          } else if (eventName === 'done') {
+            const parsed = JSON.parse(data) as {
+              sources: string[];
+              modelUsed: string;
+            };
+            set((state) => ({
+              messages: state.messages.map((m) =>
+                m.id === assistantMsgId ? { ...m, sources: parsed.sources } : m,
+              ),
+            }));
+          }
+        },
+      });
     } catch (e) {
+      if (frameId !== null) cancelAnimationFrame(frameId);
       if (isQuotaExceeded(e)) {
         set((state) => ({
-          // roll back the optimistic user message — it never got answered
-          messages: state.messages.filter((m) => m.id !== userMsg.id),
+          messages: state.messages.filter(
+            (m) => m.id !== userMsg.id && m.id !== assistantMsgId,
+          ),
           quotaError: e.body,
         }));
       } else {
         set((state) => ({
-          messages: state.messages.filter((m) => m.id !== userMsg.id),
+          messages: state.messages.filter(
+            (m) => m.id !== userMsg.id && m.id !== assistantMsgId,
+          ),
           askError:
             e instanceof Error
               ? e.message

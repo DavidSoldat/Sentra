@@ -2,7 +2,7 @@
 
 import { useUIStore } from '@/app/store/useUiStore';
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { SyntheticEvent, useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useRepoStore } from '../../store/useRepoStore';
@@ -15,7 +15,7 @@ function AddRepoForm({ onDone }: { onDone: (repo: Repo) => void }) {
   const isSubmitting = useRepoStore((s) => s.isSubmitting);
   const error = useRepoStore((s) => s.error);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!url.trim()) return;
     const repo = await submit(url.trim());

@@ -23,11 +23,6 @@ export interface Message {
   timestamp: Date;
 }
 
-export interface AskResponse {
-  answer: string;
-  sources: string[];
-}
-
 export interface QuestionResponse {
   id: number;
   question: string;

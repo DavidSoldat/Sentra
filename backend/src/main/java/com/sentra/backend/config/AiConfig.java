@@ -3,10 +3,13 @@ package com.sentra.backend.config;
 import com.sentra.backend.ai.enums.AiModel;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.anthropic.AnthropicChatModel;
+import dev.langchain4j.model.anthropic.AnthropicStreamingChatModel;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.allminilml6v2q.AllMiniLmL6V2QuantizedEmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.pgvector.PgVectorEmbeddingStore;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -94,6 +97,60 @@ public class AiConfig {
             @Qualifier("claudeSonnet") ChatModel claudeSonnet,
             @Qualifier("gpt4oMini") ChatModel gpt4oMini,
             @Qualifier("gpt4o") ChatModel gpt4o) {
+        return Map.of(
+                AiModel.CLAUDE_HAIKU, claudeHaiku,
+                AiModel.CLAUDE_SONNET, claudeSonnet,
+                AiModel.GPT_4O_MINI, gpt4oMini,
+                AiModel.GPT_4O, gpt4o
+        );
+    }
+
+    @Bean
+    @Qualifier("claudeHaikuStreaming")
+    public StreamingChatModel claudeHaikuStreamingModel() {
+        return AnthropicStreamingChatModel.builder()
+                .apiKey(anthropicApiKey)
+                .modelName("claude-haiku-4-5-20251001")
+                .temperature(0.0)
+                .build();
+    }
+
+    @Bean
+    @Qualifier("claudeSonnetStreaming")
+    public StreamingChatModel claudeSonnetStreamingModel() {
+        return AnthropicStreamingChatModel.builder()
+                .apiKey(anthropicApiKey)
+                .modelName("claude-sonnet-4-6")
+                .temperature(0.0)
+                .build();
+    }
+
+    @Bean
+    @Qualifier("gpt4oMiniStreaming")
+    public StreamingChatModel gpt4oMiniStreamingModel() {
+        return OpenAiStreamingChatModel.builder()
+                .apiKey(openAiApiKey)
+                .modelName("gpt-4o-mini")
+                .temperature(0.0)
+                .build();
+    }
+
+    @Bean
+    @Qualifier("gpt4oStreaming")
+    public StreamingChatModel gpt4oStreamingModel() {
+        return OpenAiStreamingChatModel.builder()
+                .apiKey(openAiApiKey)
+                .modelName("gpt-4o")
+                .temperature(0.0)
+                .build();
+    }
+
+    @Bean
+    public Map<AiModel, StreamingChatModel> streamingAiModels(
+            @Qualifier("claudeHaikuStreaming") StreamingChatModel claudeHaiku,
+            @Qualifier("claudeSonnetStreaming") StreamingChatModel claudeSonnet,
+            @Qualifier("gpt4oMiniStreaming") StreamingChatModel gpt4oMini,
+            @Qualifier("gpt4oStreaming") StreamingChatModel gpt4o) {
         return Map.of(
                 AiModel.CLAUDE_HAIKU, claudeHaiku,
                 AiModel.CLAUDE_SONNET, claudeSonnet,

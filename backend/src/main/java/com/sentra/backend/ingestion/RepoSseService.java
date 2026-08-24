@@ -38,8 +38,8 @@ public class RepoSseService {
         if (subscribers == null || subscribers.isEmpty()) return;
 
         boolean terminal = payload.status() != null
-            && (payload.status().equals(RepoStatus.READY.name())
-            || payload.status().equals(RepoStatus.FAILED.name()));
+                && (payload.status().equals(RepoStatus.READY.name())
+                || payload.status().equals(RepoStatus.FAILED.name()));
 
         for (SseEmitter emitter : subscribers) {
             try {
@@ -47,7 +47,11 @@ public class RepoSseService {
                 if (terminal) emitter.complete();
             } catch (IOException | IllegalStateException e) {
                 log.debug("Dropping dead SSE emitter for repo {}", repoId);
-                emitter.completeWithError(e);
+                try {
+                    emitter.completeWithError(e);
+                } catch (Exception ignored) {
+
+                }
             }
         }
 
@@ -63,7 +67,10 @@ public class RepoSseService {
                 emitter.send(SseEmitter.event().name("progress").data(progress));
             } catch (IOException | IllegalStateException e) {
                 log.debug("Dropping dead SSE emitter for repo {}", repoId);
-                emitter.completeWithError(e);
+                try {
+                    emitter.completeWithError(e);
+                } catch (Exception ignored) {
+                }
             }
         }
     }

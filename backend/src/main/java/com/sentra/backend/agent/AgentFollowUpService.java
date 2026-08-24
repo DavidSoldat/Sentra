@@ -17,10 +17,13 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -113,6 +116,84 @@ public class AgentFollowUpService {
                         "No result for agent " + agentType + " on review " + reviewId));
 
         return followUpMessageRepository.findByAgentResultIdOrderByCreatedAtAsc(agentResult.getId());
+    }
+
+    @Transactional
+    public void streamFollowUp(
+            Long reviewId, AgentType agentType, Long userId, String question, SseEmitter emitter) {
+
+        if (!reviewRepository.existsByIdAndRepoUserId(reviewId, userId)) {
+            throw new IllegalArgumentException("Review not found: " + reviewId);
+        }
+
+        ReviewEntity review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new IllegalArgumentException("Review not found: " + reviewId));
+
+        AgentResultEntity agentResult = agentResultRepository.findByReviewIdAndAgent(reviewId, agentType)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No result for agent " + agentType + " on review " + reviewId));
+
+        if (agentResult.getStatus() != AgentResultStatus.DONE) {
+            throw new IllegalStateException("This agent hasn't finished reviewing yet");
+        }
+
+        UserEntity user = review.getRepo().getUser();
+        usageEnforcementService.checkAndIncrementQuestions(user);
+
+        var resolved = modelSelectionService.resolveStreamingModel(user);
+
+        var parsed = GitHubUrlParser.parsePrUrl(review.getPrUrl());
+        String diff = gitHubClient.getPullRequestDiff(parsed.owner(), parsed.repoName(), parsed.prNumber());
+        String queryText = diff.length() > 2000 ? diff.substring(0, 2000) : diff;
+        String codebaseContext = ragService.retrieveContextForReview(review.getRepo().getId(), queryText);
+
+        BaseAgent agent = agentsByType.get(agentType);
+        List<ChatMessage> messages = buildMessages(agent, diff, codebaseContext, agentResult, question);
+
+        StringBuilder fullAnswer = new StringBuilder();
+
+        resolved.chatModel().chat(messages, new StreamingChatResponseHandler() {
+            @Override
+            public void onPartialResponse(String token) {
+                fullAnswer.append(token);
+                try {
+                    emitter.send(SseEmitter.event().name("token").data(token));
+                } catch (IOException | IllegalStateException e) {
+                    log.debug("Dropping dead SSE emitter for review {} agent {}", reviewId, agentType);
+                    try {
+                        emitter.completeWithError(e);
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            @Override
+            public void onCompleteResponse(ChatResponse response) {
+                String answer = fullAnswer.toString();
+                followUpMessageRepository.save(
+                        new AgentFollowUpMessageEntity(agentResult, MessageRole.USER, question));
+                followUpMessageRepository.save(
+                        new AgentFollowUpMessageEntity(agentResult, MessageRole.ASSISTANT, answer));
+
+                log.info("Streamed follow-up answered for review={} agent={} using model={}",
+                        reviewId, agentType, resolved.model());
+
+                try {
+                    emitter.send(SseEmitter.event().name("done").data(""));
+                    emitter.complete();
+                } catch (IOException | IllegalStateException e) {
+                    try {
+                        emitter.completeWithError(e);
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+
+            @Override
+            public void onError(Throwable error) {
+                log.error("Streaming follow-up failed for review={} agent={}", reviewId, agentType, error);
+                emitter.completeWithError(error);
+            }
+        });
     }
 
     private List<ChatMessage> buildMessages(

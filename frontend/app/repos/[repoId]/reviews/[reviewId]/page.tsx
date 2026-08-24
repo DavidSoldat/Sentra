@@ -42,11 +42,16 @@ export default function ReviewDetailPage() {
   const repoId = Number(params.repoId);
   const reviewId = Number(params.reviewId);
 
-  const { review, error, loadReview } = useReview(repoId);
+  const { review, error, loadReview, reset } = useReview(repoId);
 
   useEffect(() => {
     if (!Number.isNaN(reviewId)) loadReview(reviewId);
-  }, [reviewId, loadReview]);
+
+    return () => {
+      reset();
+      console.log('reset called');
+    };
+  }, [reviewId, loadReview, reset]);
 
   const severity = review ? overallSeverity(review.agents) : null;
 

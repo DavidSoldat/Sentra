@@ -1,4 +1,6 @@
 import { Message } from '@/app/types';
+import { FindingsText } from '../review/FindIndexed';
+import { ThinkingIndicator } from './ThinkingIndicator';
 
 interface ChatMessageProps {
   message: Message;
@@ -17,9 +19,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
         {isUser ? 'you' : 'sentra'}
       </span>
 
-      <p className='font-mono text-sm text-[#cdd9e5] leading-relaxed whitespace-pre-wrap'>
-        {message.content}
-      </p>
+      {!isUser && message.content.length === 0 ? (
+        <ThinkingIndicator />
+      ) : isUser ? (
+        <p className='font-mono text-sm text-[#cdd9e5] leading-relaxed whitespace-pre-wrap'>
+          {message.content}
+        </p>
+      ) : (
+        <FindingsText text={message.content} />
+      )}
 
       {message.sources && message.sources.length > 0 && (
         <div className='flex flex-wrap gap-1.5 mt-1'>

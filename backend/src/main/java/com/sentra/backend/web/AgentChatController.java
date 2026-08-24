@@ -7,9 +7,11 @@ import com.sentra.backend.web.dto.AgentMessageResponse;
 import com.sentra.backend.web.dto.AskFollowUpRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -39,6 +41,18 @@ public class AgentChatController {
 
         return ResponseEntity.ok(toResponse(
                 agentFollowUpService.askFollowUp(reviewId, agentType, userId, request.question())));
+    }
+
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamMessage(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long reviewId,
+            @PathVariable AgentType agentType,
+            @RequestParam String question) {
+
+        SseEmitter emitter = new SseEmitter(60_000L);
+        agentFollowUpService.streamFollowUp(reviewId, agentType, userId, question, emitter);
+        return emitter;
     }
 
     private List<AgentMessageResponse> toResponse(List<AgentFollowUpMessageEntity> messages) {

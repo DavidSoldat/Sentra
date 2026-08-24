@@ -1,6 +1,5 @@
 import {
   AiModelOption,
-  AskResponse,
   QuestionResponse,
   Repo,
   User,
@@ -69,12 +68,6 @@ export const api = {
     }),
 
   getRepo: (id: number) => request<Repo>(`/api/repos/${id}`),
-
-  ask: (repoId: number, question: string) =>
-    request<AskResponse>(`/api/repos/${repoId}/ask`, {
-      method: 'POST',
-      body: JSON.stringify({ question }),
-    }),
 
   listRepos: () => request<Repo[]>('/api/repos'),
 

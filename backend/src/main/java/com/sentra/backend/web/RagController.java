@@ -6,9 +6,11 @@ import com.sentra.backend.web.dto.AskResponse;
 import com.sentra.backend.web.dto.QuestionResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -32,6 +34,17 @@ public class RagController {
                 serviceResponse.answer(),
                 serviceResponse.sources(),
                 serviceResponse.modelUsed()));
+    }
+
+    @GetMapping(value = "/{id}/ask-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter askStream(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Long userId,
+            @RequestParam String question) {
+
+        SseEmitter emitter = new SseEmitter(60_000L);
+        ragService.streamAnswer(id, userId, question, emitter);
+        return emitter;
     }
 
     @GetMapping("/{id}/questions")

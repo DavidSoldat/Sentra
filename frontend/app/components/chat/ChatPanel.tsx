@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { ChatInput } from './ChatInput';
 import { ChatMessage } from './ChatMessage';
-import { ThinkingIndicator } from './ThinkingIndicator';
 
 const SUGGESTIONS = [
   'What does this project do?',
@@ -118,7 +117,6 @@ export function ChatPanel({
               {messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} />
               ))}
-              {isAsking && <ThinkingIndicator />}
               <div ref={bottomRef} />
             </>
           )}

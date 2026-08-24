@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { AGENT_META, AgentResult } from '@/app/types/review';
-import { SeverityBadge } from './SeverityBadge';
-import { FindingsText } from './FindIndexed';
 import { api, ApiError, isQuotaExceeded } from '@/app/lib/api';
-import { AgentMessage } from '@/app/types/review';
+import { streamSSE } from '@/app/lib/sse';
+import { AGENT_META, AgentMessage, AgentResult } from '@/app/types/review';
+import { SyntheticEvent, useEffect, useRef, useState } from 'react';
+import { FindingsText } from './FindIndexed';
+import { SeverityBadge } from './SeverityBadge';
+import { ThinkingIndicator } from '../chat/ThinkingIndicator';
 
 interface QuotaExceededBody {
   error: 'quota_exceeded';
@@ -80,7 +81,7 @@ export function AgentCard({
     });
   }, [messages]);
 
-  async function handleAsk(e: React.FormEvent) {
+  async function handleAsk(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     const q = question.trim();
     if (!q || isAsking) return;
@@ -90,10 +91,57 @@ export function AgentCard({
     setIsAsking(true);
     setQuestion('');
 
+    const userMsgId = Date.now();
+    const assistantMsgId = userMsgId + 1;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: userMsgId,
+        role: 'USER',
+        content: q,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: assistantMsgId,
+        role: 'ASSISTANT',
+        content: '',
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    let queue = '';
+    let revealed = '';
+    let frameId: number | null = null;
+
+    function tick() {
+      if (queue.length === 0) {
+        frameId = null;
+        return;
+      }
+      const next = queue.slice(0, 2);
+      queue = queue.slice(2);
+      revealed += next;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMsgId ? { ...m, content: revealed } : m,
+        ),
+      );
+      frameId = requestAnimationFrame(tick);
+    }
+
     try {
-      const updated = await api.postAgentMessage(reviewId, result.agent, q);
-      setMessages(updated);
+      const path = `/api/reviews/${reviewId}/agents/${result.agent}/messages/stream?question=${encodeURIComponent(q)}`;
+
+      await streamSSE(path, {
+        onEvent: (eventName, data) => {
+          if (eventName === 'token') {
+            queue += data;
+            if (frameId === null) frameId = requestAnimationFrame(tick);
+          }
+        },
+      });
     } catch (err) {
+      if (frameId !== null) cancelAnimationFrame(frameId);
       if (isQuotaExceeded(err)) {
         setQuotaError(err.body);
       } else {
@@ -101,6 +149,9 @@ export function AgentCard({
           err instanceof ApiError ? err.message : 'Failed to send question.',
         );
       }
+      setMessages((prev) =>
+        prev.filter((m) => m.id !== userMsgId && m.id !== assistantMsgId),
+      );
       setQuestion(q);
     } finally {
       setIsAsking(false);
@@ -175,7 +226,9 @@ export function AgentCard({
                       : 'bg-[#0D1117] border border-[#21262D] text-[#CDD9E5]'
                   }`}
                 >
-                  {m.role === 'USER' ? (
+                  {m.role === 'ASSISTANT' && m.content.length === 0 ? (
+                    <ThinkingIndicator />
+                  ) : m.role === 'USER' ? (
                     <p className='font-mono text-[13px]'>{m.content}</p>
                   ) : (
                     <FindingsText text={m.content} />
