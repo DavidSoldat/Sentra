@@ -29,6 +29,7 @@ export interface ReviewResponse {
   status: ReviewStatus;
   createdAt: string;
   completedAt: string | null;
+  githubCommentUrl: string | null;
   agents: AgentResult[];
 }
 

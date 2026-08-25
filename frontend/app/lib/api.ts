@@ -1,9 +1,4 @@
-import {
-  AiModelOption,
-  QuestionResponse,
-  Repo,
-  User,
-} from '../types';
+import { AiModelOption, QuestionResponse, Repo, User } from '../types';
 import {
   AgentMessage,
   AgentType,
@@ -160,6 +155,12 @@ export async function submitReview(
 export async function getReview(id: number): Promise<ReviewResponse> {
   return request<ReviewResponse>(`/api/reviews/${id}`, {
     cache: 'no-store',
+  });
+}
+
+export async function postReviewToGithub(id: number): Promise<ReviewResponse> {
+  return request<ReviewResponse>(`/api/reviews/${id}/post-to-github`, {
+    method: 'POST',
   });
 }
 

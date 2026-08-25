@@ -11,4 +11,5 @@ public record ReviewResponse(
         String status,
         Instant createdAt,
         Instant completedAt,
+        String githubCommentUrl,
         List<AgentResultResponse> agents) {}

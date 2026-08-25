@@ -1,11 +1,12 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useReview } from '../../../../hooks/useReview';
 import { AgentGrid } from '../../../../components/review/AgentGrid';
 import { AgentResult } from '../../../../types/review';
 import Link from 'next/link';
+import { postReviewToGithub } from '@/app/lib/api';
 
 function overallLabel(status?: string) {
   switch (status) {
@@ -43,6 +44,10 @@ export default function ReviewDetailPage() {
   const reviewId = Number(params.reviewId);
 
   const { review, error, loadReview, reset } = useReview(repoId);
+  const [isPosting, setIsPosting] = useState(false);
+  const [postError, setPostError] = useState<string | null>(null);
+  const [localReview, setLocalReview] = useState<typeof review>(null);
+  const [prevReview, setPrevReview] = useState(review);
 
   useEffect(() => {
     if (!Number.isNaN(reviewId)) loadReview(reviewId);
@@ -52,6 +57,27 @@ export default function ReviewDetailPage() {
       console.log('reset called');
     };
   }, [reviewId, loadReview, reset]);
+
+  if (review !== prevReview) {
+    setPrevReview(review);
+    setLocalReview(review);
+  }
+
+  async function handlePostToGithub() {
+    if (!localReview) return;
+    setIsPosting(true);
+    setPostError(null);
+    try {
+      const updated = await postReviewToGithub(localReview.id);
+      setLocalReview(updated);
+    } catch (err) {
+      setPostError(
+        err instanceof Error ? err.message : 'Failed to post to GitHub.',
+      );
+    } finally {
+      setIsPosting(false);
+    }
+  }
 
   const severity = review ? overallSeverity(review.agents) : null;
 
@@ -87,7 +113,7 @@ export default function ReviewDetailPage() {
                 </Link>
               </div>
               <div className='flex items-center gap-2'>
-                {review.status === 'COMPLETED' && severity && (
+                {localReview?.status === 'COMPLETED' && severity && (
                   <span
                     className={`font-mono text-[11px] uppercase tracking-widest rounded-full border px-2 py-0.5 ${SEVERITY_STYLES[severity]}`}
                   >
@@ -99,6 +125,35 @@ export default function ReviewDetailPage() {
                 </span>
               </div>
             </div>
+
+            {review.status === 'COMPLETED' && (
+              <div className='flex items-center gap-3'>
+                {localReview?.githubCommentUrl ? (
+                  <Link
+                    href={localReview.githubCommentUrl}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='inline-flex items-center gap-1.5 font-mono text-xs text-[#3fb950] hover:underline'
+                  >
+                    ✓ Posted to GitHub
+                  </Link>
+                ) : (
+                  <button
+                    type='button'
+                    onClick={handlePostToGithub}
+                    disabled={isPosting}
+                    className='rounded-md border border-[#2d333b] px-3 py-1.5 font-mono text-xs text-[#cdd9e5] hover:bg-[#161b22] disabled:opacity-50 transition-colors'
+                  >
+                    {isPosting ? 'Posting…' : 'Post to GitHub'}
+                  </button>
+                )}
+                {postError && (
+                  <span className='font-mono text-xs text-[#f85149]'>
+                    {postError}
+                  </span>
+                )}
+              </div>
+            )}
 
             <AgentGrid agents={review.agents} reviewId={review.id} />
           </>

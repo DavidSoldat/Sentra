@@ -178,7 +178,7 @@ public class ReviewController {
             }
             sb.append("\n\n");
         }
-        sb.append("---\n*Reviewed by [Sentra](").append("your-app-url-here").append(")*");
+        sb.append("---\n*Reviewed by [Sentra](https://github.com/DavidSoldat/Sentra)*");
         return sb.toString();
     }
 
@@ -202,6 +202,7 @@ public class ReviewController {
                 review.getStatus().name(),
                 review.getCreatedAt(),
                 review.getCompletedAt(),
+                review.getGithubCommentUrl(),
                 agentResponses);
     }
 }
