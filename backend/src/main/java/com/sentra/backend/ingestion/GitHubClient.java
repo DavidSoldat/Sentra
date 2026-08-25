@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -32,26 +33,20 @@ public class GitHubClient {
 
     private final RestClient restClient;
 
-    public GitHubClient(@Value("${github.token:}") String token) {
+    public GitHubClient() {
         RestClient.Builder builder = RestClient.builder()
                 .baseUrl(BASE_URL)
                 .defaultHeader(HttpHeaders.ACCEPT, "application/vnd.github+json")
                 .defaultHeader("X-GitHub-Api-Version", "2022-11-28");
 
-        if (token != null && !token.isBlank()) {
-            builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
-        } else {
-            log.warn("No GITHUB_TOKEN set. Rate limit is 60 req/hr. " +
-                    "Set GITHUB_TOKEN in .env for 5,000/hr.");
-        }
-
         this.restClient = builder.build();
     }
 
-    public List<TreeItem> getIndexableFiles(String owner, String repoName) {
+    public List<TreeItem> getIndexableFiles(String accessToken, String owner, String repoName) {
         String url = "/repos/{owner}/{repo}/git/trees/HEAD?recursive=1";
         TreeResponse tree = restClient.get()
                 .uri(url, owner, repoName)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .retrieve()
                 .body(TreeResponse.class);
 
@@ -64,10 +59,11 @@ public class GitHubClient {
                 .toList();
     }
 
-    public Optional<String> getFileContent(String owner, String repoName, String path) {
+    public Optional<String> getFileContent(String accessToken, String owner, String repoName, String path) {
         try {
             ContentResponse content = restClient.get()
                     .uri("/repos/{owner}/{repo}/contents/{path}", owner, repoName, path)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                     .retrieve()
                     .body(ContentResponse.class);
 
@@ -93,10 +89,11 @@ public class GitHubClient {
         return true;
     }
 
-    public String getPullRequestDiff(String owner, String repoName, int prNumber) {
+    public String getPullRequestDiff(String accessToken, String owner, String repoName, int prNumber) {
         String diff = restClient.get()
                 .uri("/repos/{owner}/{repo}/pulls/{prNumber}", owner, repoName, prNumber)
                 .header(HttpHeaders.ACCEPT, "application/vnd.github.diff")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .retrieve()
                 .body(String.class);
 
@@ -109,9 +106,10 @@ public class GitHubClient {
         return diff;
     }
 
-    public PullRequestInfo getPullRequestInfo(String owner, String repoName, int prNumber) {
+    public PullRequestInfo getPullRequestInfo(String accessToken, String owner, String repoName, int prNumber) {
         PullRequestInfo info = restClient.get()
                 .uri("/repos/{owner}/{repo}/pulls/{prNumber}", owner, repoName, prNumber)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .retrieve()
                 .body(PullRequestInfo.class);
 
@@ -123,17 +121,36 @@ public class GitHubClient {
         return info;
     }
 
-    public List<PullRequestSummary> listPullRequests(String owner, String repoName) {
+    public List<PullRequestSummary> listPullRequests(String accessToken, String owner, String repoName) {
         List<PullRequestSummary> prs = restClient.get()
                 .uri("/repos/{owner}/{repo}/pulls?state=all&per_page=100&sort=created&direction=desc",
                         owner, repoName)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<PullRequestSummary>>() {});
+                .body(new ParameterizedTypeReference<List<PullRequestSummary>>() {
+                });
 
         if (prs == null) {
             throw new IllegalStateException(
                     "Could not fetch pull requests for %s/%s".formatted(owner, repoName));
         }
         return prs;
+    }
+
+    public String postReviewComment(String userAccessToken, String owner, String repoName, int prNumber, String body) {
+        var response = restClient.post()
+                .uri("/repos/{owner}/{repo}/pulls/{prNumber}/reviews", owner, repoName, prNumber)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + userAccessToken)
+                .body(Map.of("body", body, "event", "COMMENT"))
+                .retrieve()
+                .body(Map.class);
+
+        if (response == null || response.get("html_url") == null) {
+            throw new IllegalStateException(
+                    "GitHub did not return a URL for the posted review on PR #%d in %s/%s"
+                            .formatted(prNumber, owner, repoName));
+        }
+
+        return response.get("html_url").toString();
     }
 }

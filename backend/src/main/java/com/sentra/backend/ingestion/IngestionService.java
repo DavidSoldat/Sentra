@@ -5,6 +5,7 @@ import com.sentra.backend.ingestion.dto.TreeItem;
 import com.sentra.backend.repo.RepoEntity;
 import com.sentra.backend.repo.RepoRepository;
 import com.sentra.backend.repo.RepoStatus;
+import com.sentra.backend.user.UserRepository;
 import com.sentra.backend.web.dto.RepoResponse;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.embedding.Embedding;
@@ -32,6 +33,7 @@ public class IngestionService {
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final RepoSseService repoSseService;
+    private final UserRepository userRepository;
 
     @Value("${sentra.ingestion.repo.max-files:500}")
     private int maxFiles;
@@ -43,6 +45,8 @@ public class IngestionService {
         RepoEntity repo = repoRepository.findById(repoId)
                 .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + repoId));
 
+        String accessToken = userRepository.findById(repo.getUser().getId()).orElseThrow().getGithubAccessToken();
+
         try {
             markIndexing(repo);
 
@@ -50,7 +54,7 @@ public class IngestionService {
             String owner = ownerAndName[0];
             String repoName = ownerAndName[1];
 
-            List<TreeItem> files = gitHubClient.getIndexableFiles(owner, repoName);
+            List<TreeItem> files = gitHubClient.getIndexableFiles(accessToken, owner, repoName);
             log.info("Repo {}/{}: {} indexable files found", owner, repoName, files.size());
 
 
@@ -62,7 +66,7 @@ public class IngestionService {
             int totalFiles = files.size();
             int chunksStored = 0;
             for (int i = 0; i < totalFiles; i++) {
-                chunksStored += processFile(repoId, owner, repoName, files.get(i));
+                chunksStored += processFile(repoId, accessToken, owner, repoName, files.get(i));
 
                 int processed = i + 1;
                 if (processed % 5 == 0 || processed == totalFiles) {
@@ -79,10 +83,10 @@ public class IngestionService {
         }
     }
 
-    private int processFile(Long repoId, String owner, String repoName, TreeItem file) {
+    private int processFile(Long repoId, String accessToken, String owner, String repoName, TreeItem file) {
         String path = file.path();
 
-        return gitHubClient.getFileContent(owner, repoName, path)
+        return gitHubClient.getFileContent(accessToken, owner, repoName, path)
                 .map(content -> {
                     if (content.contains("\0")) {
                         log.debug("Skipping binary file (null bytes): {}", path);

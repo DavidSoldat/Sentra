@@ -1,6 +1,7 @@
 package com.sentra.backend.web;
 
 import com.sentra.backend.billing.UsageEnforcementService;
+import com.sentra.backend.ingestion.GitHubClient;
 import com.sentra.backend.ingestion.GitHubUrlParser;
 import com.sentra.backend.orchestrator.OrchestratorService;
 import com.sentra.backend.repo.RepoEntity;
@@ -8,6 +9,7 @@ import com.sentra.backend.repo.RepoRepository;
 import com.sentra.backend.review.ReviewSseService;
 import com.sentra.backend.review.entity.AgentResultEntity;
 import com.sentra.backend.review.entity.ReviewEntity;
+import com.sentra.backend.review.enums.AgentResultStatus;
 import com.sentra.backend.review.enums.AgentType;
 import com.sentra.backend.review.enums.ReviewStatus;
 import com.sentra.backend.review.repository.AgentResultRepository;
@@ -31,6 +33,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -45,6 +48,7 @@ public class ReviewController {
     private final UsageEnforcementService usageEnforcementService;
     private final UserRepository userRepository;
     private final ReviewSseService reviewSseService;
+    private final GitHubClient gitHubClient;
 
     @PostMapping
     public ResponseEntity<ReviewResponse> submitReview(@AuthenticationPrincipal Long userId, @Valid @RequestBody SubmitReviewRequest request) {
@@ -117,6 +121,65 @@ public class ReviewController {
         }
 
         return emitter;
+    }
+
+    @PostMapping("/{id}/post-to-github")
+    public ResponseEntity<ReviewResponse> postToGithub(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+
+        if (!reviewRepository.existsByIdAndRepoUserId(id, userId)) {
+            throw new IllegalArgumentException("Review not found: " + id);
+        }
+
+        ReviewEntity review = reviewRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Review not found: " + id));
+
+        if (review.getStatus() != ReviewStatus.COMPLETED) {
+            throw new IllegalStateException("Review must be completed before posting to GitHub");
+        }
+
+        if (review.getGithubCommentUrl() != null) {
+            return ResponseEntity.ok(toResponse(review));
+        }
+
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+        var parsed = GitHubUrlParser.parsePrUrl(review.getPrUrl());
+        String body = buildReviewCommentBody(review);
+
+        String commentUrl = gitHubClient.postReviewComment(
+                user.getGithubAccessToken(), parsed.owner(), parsed.repoName(), parsed.prNumber(), body);
+
+        review.setGithubCommentUrl(commentUrl);
+        review.setPostedToGithubAt(Instant.now());
+        reviewRepository.save(review);
+
+        return ResponseEntity.ok(toResponse(review));
+    }
+
+    private String buildReviewCommentBody(ReviewEntity review) {
+        List<AgentResultEntity> results = agentResultRepository.findByReviewId(review.getId());
+        Map<AgentType, String> emoji = Map.of(
+                AgentType.SECURITY, "🔒", AgentType.ARCHITECTURE, "🏗️",
+                AgentType.PERFORMANCE, "⚡", AgentType.DOCS, "📝");
+
+        StringBuilder sb = new StringBuilder("## 🤖 Sentra AI Review\n\n");
+        for (AgentResultEntity r : results) {
+            sb.append("### ").append(emoji.get(r.getAgent())).append(" ")
+                    .append(r.getAgent().name().charAt(0)).append(r.getAgent().name().substring(1).toLowerCase())
+                    .append("\n\n");
+
+            if (r.getStatus() == AgentResultStatus.DONE) {
+                sb.append(r.getFindings() != null ? r.getFindings() : "No findings — clean pass.");
+            } else {
+                sb.append("_This agent didn't complete successfully._");
+            }
+            sb.append("\n\n");
+        }
+        sb.append("---\n*Reviewed by [Sentra](").append("your-app-url-here").append(")*");
+        return sb.toString();
     }
 
     private ReviewResponse toResponse(ReviewEntity review) {

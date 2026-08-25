@@ -42,8 +42,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) authentication;
         OAuth2User oAuth2User = oauthToken.getPrincipal();
 
-        OAuth2AuthorizedClient authorizedclient = authorizedClientService.loadAuthorizedClient(oauthToken.getAuthorizedClientRegistrationId(), oAuth2User.getName());
-        String accessToken = authorizedclient.getAccessToken().getTokenValue();
+        OAuth2AuthorizedClient authorizedClient = authorizedClientService.loadAuthorizedClient(oauthToken.getAuthorizedClientRegistrationId(), oAuth2User.getName());
+        String accessToken = authorizedClient.getAccessToken().getTokenValue();
 
         Long githubId = ((Number) oAuth2User.getAttributes().get("id")).longValue();
         String username = (String) oAuth2User.getAttributes().get("login");

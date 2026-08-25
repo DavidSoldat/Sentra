@@ -83,10 +83,12 @@ public class AgentFollowUpService {
         UserEntity user = review.getRepo().getUser();
         usageEnforcementService.checkAndIncrementQuestions(user);
 
+        String accessToken = user.getGithubAccessToken();
+
         var resolved = modelSelectionService.resolveModel(user);
 
         var parsed = GitHubUrlParser.parsePrUrl(review.getPrUrl());
-        String diff = gitHubClient.getPullRequestDiff(parsed.owner(), parsed.repoName(), parsed.prNumber());
+        String diff = gitHubClient.getPullRequestDiff(accessToken, parsed.owner(), parsed.repoName(), parsed.prNumber());
         String queryText = diff.length() > 2000 ? diff.substring(0, 2000) : diff;
         String codebaseContext = ragService.retrieveContextForReview(review.getRepo().getId(), queryText);
 
@@ -140,10 +142,12 @@ public class AgentFollowUpService {
         UserEntity user = review.getRepo().getUser();
         usageEnforcementService.checkAndIncrementQuestions(user);
 
+        String accessToken = user.getGithubAccessToken();
+
         var resolved = modelSelectionService.resolveStreamingModel(user);
 
         var parsed = GitHubUrlParser.parsePrUrl(review.getPrUrl());
-        String diff = gitHubClient.getPullRequestDiff(parsed.owner(), parsed.repoName(), parsed.prNumber());
+        String diff = gitHubClient.getPullRequestDiff(accessToken, parsed.owner(), parsed.repoName(), parsed.prNumber());
         String queryText = diff.length() > 2000 ? diff.substring(0, 2000) : diff;
         String codebaseContext = ragService.retrieveContextForReview(review.getRepo().getId(), queryText);
 

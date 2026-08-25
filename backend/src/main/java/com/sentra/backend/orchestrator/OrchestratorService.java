@@ -58,13 +58,17 @@ public class OrchestratorService {
 
             var parsed = GitHubUrlParser.parsePrUrl(review.getPrUrl());
 
+            String accessToken = userRepository.findById(
+                    reviewRepository.findOwnerIdByReviewId(reviewId)).orElseThrow().getGithubAccessToken();
+
+
             PullRequestInfo info = gitHubClient.getPullRequestInfo(
-                    parsed.owner(), parsed.repoName(), parsed.prNumber());
+                    accessToken, parsed.owner(), parsed.repoName(), parsed.prNumber());
             review.setPrTitle(info.title());
             reviewRepository.save(review);
 
             String diff = gitHubClient.getPullRequestDiff(
-                    parsed.owner(), parsed.repoName(), parsed.prNumber());
+                    accessToken, parsed.owner(), parsed.repoName(), parsed.prNumber());
 
             log.info("Fetched diff for review {}: {} chars", reviewId, diff.length());
 

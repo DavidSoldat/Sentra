@@ -11,7 +11,9 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "reviews")
-@Getter @Setter @NoArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class ReviewEntity {
 
     @Id
@@ -39,6 +41,11 @@ public class ReviewEntity {
     private Instant createdAt = Instant.now();
 
     private Instant completedAt;
+
+    @Column(name = "github_comment_url")
+    private String githubCommentUrl;
+
+    private Instant postedToGithubAt;
 
     public ReviewEntity(RepoEntity repo, String prUrl, Integer prNumber, String prTitle) {
         this.repo = repo;

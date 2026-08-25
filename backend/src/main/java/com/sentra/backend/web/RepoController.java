@@ -97,8 +97,8 @@ public class RepoController {
     @GetMapping(value = "/{id}/status-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamStatus(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
         RepoEntity repo = repoRepository.findById(id)
-             .filter(r -> r.getUser().getId().equals(userId))
-             .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + id));
+                .filter(r -> r.getUser().getId().equals(userId))
+                .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + id));
         SseEmitter emitter = repoSseService.subscribe(id);
 
         if (repo.getStatus() == RepoStatus.READY || repo.getStatus() == RepoStatus.FAILED) {
@@ -117,7 +117,9 @@ public class RepoController {
                 .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + id));
 
         var parsed = GitHubUrlParser.parseRepoUrl(repo.getUrl());
-        return ResponseEntity.ok(gitHubClient.listPullRequests(parsed.owner(), parsed.repoName()));
+        String accessToken = userRepository.findById(userId).orElseThrow().getGithubAccessToken();
+        return ResponseEntity.ok(gitHubClient.listPullRequests(
+                accessToken, parsed.owner(), parsed.repoName()));
     }
 
     @GetMapping("/{id}/reviews")
@@ -125,7 +127,7 @@ public class RepoController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long id) {
 
-        if(!repoRepository.existsById(id)) {
+        if (!repoRepository.existsById(id)) {
             throw new IllegalArgumentException("Repo not found: " + id);
         }
 
