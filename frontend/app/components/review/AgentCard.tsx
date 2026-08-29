@@ -49,9 +49,11 @@ function statusLabel(status: AgentResult['status']) {
 export function AgentCard({
   result,
   reviewId,
+  onRetried,
 }: {
   result: AgentResult;
   reviewId: number;
+  onRetried: () => void;
 }) {
   const meta = AGENT_META[result.agent];
   const isEmpty = result.status === 'PENDING';
@@ -62,6 +64,8 @@ export function AgentCard({
   const [isAsking, setIsAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quotaError, setQuotaError] = useState<QuotaExceededBody | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -158,6 +162,21 @@ export function AgentCard({
     }
   }
 
+  async function handleRetry() {
+    if (isRetrying) return;
+    setRetryError(null);
+    setIsRetrying(true);
+    try {
+      await api.retryAgent(reviewId, result.agent);
+      onRetried();
+    } catch (err) {
+      setRetryError(
+        err instanceof ApiError ? err.message : 'Failed to retry agent.',
+      );
+      setIsRetrying(false);
+    }
+  }
+
   return (
     <div
       className={`flex flex-col rounded-lg border bg-[#0D1117] md:h-130 transition-colors duration-300 ${
@@ -196,10 +215,25 @@ export function AgentCard({
         )}
 
         {result.status === 'FAILED' && (
-          <p className='font-mono text-[13px] text-[#F85149]'>
-            This agent hit an error and didn&apos;t finish. The other agents
-            aren&apos;t affected.
-          </p>
+          <div className='flex flex-col gap-2'>
+            <p className='font-mono text-[13px] text-[#F85149]'>
+              This agent hit an error and didn&apos;t finish. The other agents
+              aren&apos;t affected.
+            </p>
+            {retryError && (
+              <p className='font-mono text-[11px] text-[#F85149]'>
+                {retryError}
+              </p>
+            )}
+            <button
+              type='button'
+              onClick={handleRetry}
+              disabled={isRetrying}
+              className='self-start rounded-md border border-[#30363D] px-3 py-1.5 font-mono text-[13px] text-[#CDD9E5] hover:border-[#316DCA] hover:text-[#316DCA] disabled:cursor-not-allowed disabled:opacity-40'
+            >
+              {isRetrying ? 'Retrying…' : 'Retry'}
+            </button>
+          </div>
         )}
 
         {result.status === 'DONE' && (

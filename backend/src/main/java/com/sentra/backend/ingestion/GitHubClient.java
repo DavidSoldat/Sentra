@@ -2,12 +2,13 @@ package com.sentra.backend.ingestion;
 
 import com.sentra.backend.ingestion.dto.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.net.URI;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -42,42 +43,7 @@ public class GitHubClient {
         this.restClient = builder.build();
     }
 
-    public List<TreeItem> getIndexableFiles(String accessToken, String owner, String repoName) {
-        String url = "/repos/{owner}/{repo}/git/trees/HEAD?recursive=1";
-        TreeResponse tree = restClient.get()
-                .uri(url, owner, repoName)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                .retrieve()
-                .body(TreeResponse.class);
-
-        if (tree == null || tree.tree() == null) return List.of();
-
-        return tree.tree().stream()
-                .filter(item -> "blob".equals(item.type()))
-                .filter(item -> item.size() != null && item.size() < 200_000)
-                .filter(item -> isIndexable(item.path()))
-                .toList();
-    }
-
-    public Optional<String> getFileContent(String accessToken, String owner, String repoName, String path) {
-        try {
-            ContentResponse content = restClient.get()
-                    .uri("/repos/{owner}/{repo}/contents/{path}", owner, repoName, path)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                    .retrieve()
-                    .body(ContentResponse.class);
-
-            if (content == null || content.content() == null) return Optional.empty();
-
-            String raw = content.content().replace("\n", "");
-            return Optional.of(new String(Base64.getDecoder().decode(raw)));
-        } catch (Exception e) {
-            log.debug("Skipping file {}: {}", path, e.getMessage());
-            return Optional.empty();
-        }
-    }
-
-    private boolean isIndexable(String path) {
+    public static boolean isIndexable(String path) {
         if (path == null) return false;
         String lower = path.toLowerCase();
         for (String prefix : SKIP_PATH_PREFIXES) {
@@ -135,6 +101,47 @@ public class GitHubClient {
                     "Could not fetch pull requests for %s/%s".formatted(owner, repoName));
         }
         return prs;
+    }
+
+    public byte[] downloadTarball(String accessToken, String owner, String repoName) {
+        ResponseEntity<Void> redirectResponse = restClient.get()
+                .uri("/repos/{owner}/{repo}/tarball", owner, repoName)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .retrieve()
+                .toBodilessEntity();
+
+        URI downloadUrl = redirectResponse.getHeaders().getLocation();
+        if (downloadUrl == null) {
+            throw new IllegalStateException(
+                    "GitHub did not return a redirect location for %s/%s tarball".formatted(owner, repoName));
+        }
+
+        byte[] tarball = RestClient.create()
+                .get()
+                .uri(downloadUrl)
+                .retrieve()
+                .body(byte[].class);
+
+        if (tarball == null || tarball.length == 0) {
+            throw new IllegalStateException(
+                    "No tarball content returned for %s/%s".formatted(owner, repoName));
+        }
+
+        log.info("Downloaded tarball for {}/{}: {} bytes", owner, repoName, tarball.length);
+        return tarball;
+    }
+
+    public List<GitHubRepoSummary> listUserRepos(String accessToken) {
+        List<GitHubRepoSummary> repos = restClient.get()
+                .uri("/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<GitHubRepoSummary>>() {});
+
+        if (repos == null) {
+            throw new IllegalStateException("Could not fetch repos for the authenticated user");
+        }
+        return repos;
     }
 
     public String postReviewComment(String userAccessToken, String owner, String repoName, int prNumber, String body) {

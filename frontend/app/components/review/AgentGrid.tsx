@@ -14,9 +14,11 @@ function placeholder(agent: AgentType): AgentResult {
 export function AgentGrid({
   agents,
   reviewId,
+  onRetried,
 }: {
   agents: AgentResult[];
   reviewId: number;
+  onRetried: () => void;
 }) {
   const byType = new Map(agents.map((a) => [a.agent, a]));
 
@@ -27,6 +29,7 @@ export function AgentGrid({
           key={type}
           result={byType.get(type) ?? placeholder(type)}
           reviewId={reviewId}
+          onRetried={onRetried}
         />
       ))}
     </div>

@@ -45,12 +45,6 @@ export function StatusBar({ repo }: StatusBarProps) {
       <span className={`font-mono text-xs ${config.textClass} shrink-0`}>
         {config.label}
       </span>
-
-      {/* {repo.status === 'READY' && repo.indexedAt && (
-        <span className='font-mono text-xs text-[#444c56] ml-1 shrink-0'>
-          {new Date(repo.indexedAt).toLocaleTimeString()}
-        </span>
-      )} */}
     </div>
   );
 }

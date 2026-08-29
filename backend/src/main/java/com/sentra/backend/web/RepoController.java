@@ -55,7 +55,13 @@ public class RepoController {
             @Valid @RequestBody SubmitRepoRequest request) {
 
         return repoRepository.findByUserIdAndUrl(userId, request.url())
-                .map(existing -> ResponseEntity.ok(RepoResponse.from(existing)))
+                .map(existing -> {
+                    if (existing.getStatus() == RepoStatus.FAILED) {
+                        ingestionService.deleteEmbeddingsForRepo(existing.getId());
+                        ingestionService.indexRepo(existing.getId());
+                    }
+                    return ResponseEntity.ok(RepoResponse.from(existing));
+                })
                 .orElseGet(() -> {
                     UserEntity user = userRepository.findById(userId)
                             .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
@@ -151,6 +157,7 @@ public class RepoController {
                 .filter(r -> r.getUser().getId().equals(userId))
                 .orElseThrow(() -> new IllegalArgumentException("Repo not found: " + id));
 
+        ingestionService.deleteEmbeddingsForRepo(id);
         repoRepository.delete(repo);
 
         return ResponseEntity.noContent().build();

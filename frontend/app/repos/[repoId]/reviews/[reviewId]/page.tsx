@@ -43,7 +43,7 @@ export default function ReviewDetailPage() {
   const repoId = Number(params.repoId);
   const reviewId = Number(params.reviewId);
 
-  const { review, error, loadReview, reset } = useReview(repoId);
+  const { review, error, loadReview, reset, resumeStream } = useReview(repoId);
   const [isPosting, setIsPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const [localReview, setLocalReview] = useState<typeof review>(null);
@@ -155,7 +155,11 @@ export default function ReviewDetailPage() {
               </div>
             )}
 
-            <AgentGrid agents={review.agents} reviewId={review.id} />
+            <AgentGrid
+              agents={review.agents}
+              reviewId={review.id}
+              onRetried={() => resumeStream(review.id)}
+            />
           </>
         )}
 

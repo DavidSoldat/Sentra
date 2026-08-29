@@ -45,3 +45,11 @@ export interface User {
   cancelAt: string | null;
   preferredModel: AiModelId;
 }
+
+export interface GitHubRepoPickerItem {
+  fullName: string;
+  htmlUrl: string;
+  isPrivate: boolean;
+  description: string | null;
+  alreadyAdded: boolean;
+}

@@ -29,4 +29,16 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    @Bean(name = "fileProcessingExecutor")
+    public Executor fileProcessingExecutor() {
+        int cores = Runtime.getRuntime().availableProcessors();
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(cores);
+        executor.setMaxPoolSize(cores * 2);
+        executor.setQueueCapacity(200);
+        executor.setThreadNamePrefix("file-proc-");
+        executor.initialize();
+        return executor;
+    }
 }

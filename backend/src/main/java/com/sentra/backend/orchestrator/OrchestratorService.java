@@ -10,6 +10,7 @@ import com.sentra.backend.review.ReviewSseService;
 import com.sentra.backend.review.entity.AgentResultEntity;
 import com.sentra.backend.review.entity.ReviewEntity;
 import com.sentra.backend.review.enums.AgentResultStatus;
+import com.sentra.backend.review.enums.AgentType;
 import com.sentra.backend.review.enums.ReviewStatus;
 import com.sentra.backend.review.repository.AgentResultRepository;
 import com.sentra.backend.review.repository.ReviewRepository;
@@ -139,6 +140,55 @@ public class OrchestratorService {
                 .filter(r -> r.getAgent() == type)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No AgentResultEntity row for type " + type));
+    }
+
+    @Async("ingestionExecutor")
+    public void retryAgent(Long reviewId, AgentType agentType) {
+        log.info("Retrying agent {} for review {}", agentType, reviewId);
+
+        ReviewEntity review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new IllegalArgumentException("Review not found: " + reviewId));
+
+        AgentResultEntity row = agentResultRepository.findByReviewIdAndAgent(reviewId, agentType)
+                .orElseThrow(() -> new IllegalStateException("No AgentResultEntity row for type " + agentType));
+
+        try {
+            markReviewRunning(review);
+
+            var parsed = GitHubUrlParser.parsePrUrl(review.getPrUrl());
+            String accessToken = userRepository.findById(
+                    reviewRepository.findOwnerIdByReviewId(reviewId)).orElseThrow().getGithubAccessToken();
+
+            String diff = gitHubClient.getPullRequestDiff(
+                    accessToken, parsed.owner(), parsed.repoName(), parsed.prNumber());
+
+            String codebaseContext = fetchCodebaseContext(review, diff);
+
+            UserEntity owner = userRepository.findById(reviewRepository.findOwnerIdByReviewId(reviewId))
+                    .orElseThrow(() -> new IllegalStateException("Owner not found for review " + reviewId));
+            ChatModel model = modelSelectionService.resolveModel(owner).chatModel();
+
+            BaseAgent agent = agentFor(agentType);
+
+            runAgent(agent, diff, codebaseContext, row, model).join();
+
+            markReviewCompleted(review);
+            log.info("Retry of agent {} for review {} finished", agentType, reviewId);
+
+        } catch (Exception e) {
+            log.error("Retry of agent {} for review {} failed before agent could run", agentType, reviewId, e);
+            markAgentFailed(row);
+            markReviewCompleted(review);
+        }
+    }
+
+    private BaseAgent agentFor(AgentType type) {
+        return switch (type) {
+            case SECURITY -> securityAgent;
+            case ARCHITECTURE -> architectureAgent;
+            case PERFORMANCE -> performanceAgent;
+            case DOCS -> docsAgent;
+        };
     }
 
 

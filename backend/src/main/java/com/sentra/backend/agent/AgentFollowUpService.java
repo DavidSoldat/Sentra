@@ -19,12 +19,15 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,6 +44,9 @@ public class AgentFollowUpService {
     private final ModelSelectionService modelSelectionService;
     private final UsageEnforcementService usageEnforcementService;
     private final Map<AgentType, BaseAgent> agentsByType;
+
+    @Value("${sentra.agent.follow-up.history-limit:5}")
+    private int historyLimit;
 
     public AgentFollowUpService(
             ReviewRepository reviewRepository,
@@ -214,19 +220,21 @@ public class AgentFollowUpService {
 
         systemPrompt.append("--- PULL REQUEST DIFF ---\n").append(diff).append("\n\n");
         systemPrompt.append("""
-                You already reviewed this pull request. The user now has follow-up
-                questions about your findings. Answer conversationally and refer back
-                to specific parts of the diff or your original findings where relevant.
-                """);
+            You already reviewed this pull request. The user now has follow-up
+            questions about your findings. Answer conversationally and refer back
+            to specific parts of the diff or your original findings where relevant.
+            """);
 
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(SystemMessage.from(systemPrompt.toString()));
         messages.add(UserMessage.from("Please review this pull request."));
         messages.add(AiMessage.from(agentResult.getFindings()));
 
-        List<AgentFollowUpMessageEntity> prior =
-                followUpMessageRepository.findByAgentResultIdOrderByCreatedAtAsc(agentResult.getId());
-        for (AgentFollowUpMessageEntity m : prior) {
+        List<AgentFollowUpMessageEntity> recent = followUpMessageRepository
+                .findByAgentResultIdOrderByCreatedAtDesc(agentResult.getId(), PageRequest.of(0, historyLimit));
+        Collections.reverse(recent);
+
+        for (AgentFollowUpMessageEntity m : recent) {
             messages.add(m.getRole() == MessageRole.USER
                     ? UserMessage.from(m.getContent())
                     : AiMessage.from(m.getContent()));

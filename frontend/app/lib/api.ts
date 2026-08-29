@@ -1,4 +1,10 @@
-import { AiModelOption, QuestionResponse, Repo, User } from '../types';
+import {
+  AiModelOption,
+  GitHubRepoPickerItem,
+  QuestionResponse,
+  Repo,
+  User,
+} from '../types';
 import {
   AgentMessage,
   AgentType,
@@ -65,6 +71,8 @@ export const api = {
   getRepo: (id: number) => request<Repo>(`/api/repos/${id}`),
 
   listRepos: () => request<Repo[]>('/api/repos'),
+
+  listGithubRepos: () => request<GitHubRepoPickerItem[]>('/api/github/repos'),
 
   getPullRequests: async (repoId: number) => {
     const raw = await request<
@@ -140,6 +148,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ question }),
       },
+    ),
+  retryAgent: (reviewId: number, agentType: AgentType) =>
+    request<ReviewResponse>(
+      `/api/reviews/${reviewId}/agents/${agentType}/retry`,
+      { method: 'POST' },
     ),
 };
 

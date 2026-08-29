@@ -24,6 +24,7 @@ interface UseReviewResult {
   start: (prUrl: string) => Promise<ReviewResponse | null>;
   loadReview: (reviewId: number) => Promise<void>;
   reset: () => void;
+  resumeStream: (reviewId: number) => void;
 }
 
 export function useReview(repoId: number | null): UseReviewResult {
@@ -168,7 +169,23 @@ export function useReview(repoId: number | null): UseReviewResult {
     [startStream],
   );
 
+  const resumeStream = useCallback(
+    (reviewId: number) => {
+      startStream(reviewId);
+    },
+    [startStream],
+  );
+
   useEffect(() => stopStream, [stopStream]);
 
-  return { review, error, quotaError, isSubmitting, start, loadReview, reset };
+  return {
+    review,
+    error,
+    quotaError,
+    isSubmitting,
+    start,
+    loadReview,
+    reset,
+    resumeStream,
+  };
 }

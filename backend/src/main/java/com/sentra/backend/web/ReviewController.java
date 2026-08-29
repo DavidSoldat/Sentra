@@ -159,6 +159,31 @@ public class ReviewController {
         return ResponseEntity.ok(toResponse(review));
     }
 
+    @PostMapping("/{id}/agents/{agentType}/retry")
+    public ResponseEntity<ReviewResponse> retryAgent(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id,
+            @PathVariable AgentType agentType) {
+
+        if (!reviewRepository.existsByIdAndRepoUserId(id, userId)) {
+            throw new IllegalArgumentException("Review not found: " + id);
+        }
+
+        AgentResultEntity row = agentResultRepository.findByReviewIdAndAgent(id, agentType)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No result for agent " + agentType + " on review " + id));
+
+        if (row.getStatus() != AgentResultStatus.FAILED) {
+            throw new IllegalStateException(
+                    "Only a failed agent can be retried (current status: " + row.getStatus() + ")");
+        }
+
+        orchestratorService.retryAgent(id, agentType);
+
+        ReviewEntity review = reviewRepository.findById(id).orElseThrow();
+        return ResponseEntity.accepted().body(toResponse(review));
+    }
+
     private String buildReviewCommentBody(ReviewEntity review) {
         List<AgentResultEntity> results = agentResultRepository.findByReviewId(review.getId());
         Map<AgentType, String> emoji = Map.of(

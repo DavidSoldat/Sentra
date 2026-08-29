@@ -145,6 +145,10 @@ export const useRepoStore = create<RepoState>((set, get) => ({
         };
       });
 
+      if (data.status !== 'READY') {
+        get()._startStream(data.id);
+      }
+
       return data;
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to submit repo' });
