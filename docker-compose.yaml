@@ -4,8 +4,8 @@ services:
     container_name: sentra-postgres
     environment:
       POSTGRES_DB: sentra
-      POSTGRES_USER: sentra
-      POSTGRES_PASSWORD: sentra
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - '5432:5432'
     volumes:
@@ -15,6 +15,37 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sentra-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/sentra
+    ports:
+      - '8080:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: ${NEXT_PUBLIC_PADDLE_CLIENT_TOKEN}
+        NEXT_PUBLIC_PADDLE_PRO_PRICE_ID: ${NEXT_PUBLIC_PADDLE_PRO_PRICE_ID}
+    container_name: sentra-frontend
+    env_file:
+      - ./frontend/.env
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
 
 volumes:
   sentra_pgdata:

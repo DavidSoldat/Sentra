@@ -51,6 +51,7 @@ sentra:
 
   rag:
     top-k: 20
+
   security:
     token-encryption-key: ${TOKEN_ENCRYPTION_KEY:}
     jwt-secret: ${JWT_SECRET:}
