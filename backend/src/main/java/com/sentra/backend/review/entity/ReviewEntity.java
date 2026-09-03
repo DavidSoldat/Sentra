@@ -45,6 +45,9 @@ public class ReviewEntity {
     @Column(name = "github_comment_url")
     private String githubCommentUrl;
 
+    @Column(name = "share_token", unique = true)
+    private String shareToken;
+
     private Instant postedToGithubAt;
 
     public ReviewEntity(RepoEntity repo, String prUrl, Integer prNumber, String prTitle) {

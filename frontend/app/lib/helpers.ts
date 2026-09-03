@@ -1,4 +1,4 @@
-import { Severity } from '../types/review';
+import { AgentResult, Severity } from '../types/review';
 
 export const SEVERITY_STYLES: Record<Severity, string> = {
   HIGH: 'bg-[#3D1418] text-[#F85149] border-[#F85149]/40',
@@ -13,3 +13,25 @@ export const SEVERITY_LABEL: Record<Severity, string> = {
   LOW: 'low',
   NONE: 'clear',
 };
+
+export function overallLabel(status?: string) {
+  switch (status) {
+    case 'RUNNING':
+      return 'Agents are reviewing the diff…';
+    case 'COMPLETED':
+      return 'Review complete.';
+    case 'FAILED':
+      return 'Review failed to complete.';
+    default:
+      return '';
+  }
+}
+
+export function overallSeverity(agents: AgentResult[]): Severity | null {
+  const order: Severity[] = ['HIGH', 'MEDIUM', 'LOW', 'NONE'];
+  const done = agents.filter((a) => a.status === 'DONE' && a.severity);
+  for (const level of order) {
+    if (done.some((a) => a.severity === level)) return level;
+  }
+  return null;
+}

@@ -2,6 +2,7 @@ package com.sentra.backend.web;
 
 import com.sentra.backend.billing.QuotaExceededException;
 import com.sentra.backend.billing.RepoLimitExceededException;
+import com.sentra.backend.review.PrivateRepoShareConfirmationRequiredException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -80,6 +81,14 @@ public class GlobalExceptionHandler {
                 "resourceType", ex.getResourceType(),
                 "limit", ex.getLimit(),
                 "resetsAt", ex.getResetsAt().toString()
+        ));
+    }
+
+    @ExceptionHandler(PrivateRepoShareConfirmationRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handlePrivateRepoConfirmation(
+            PrivateRepoShareConfirmationRequiredException ex) {
+        return ResponseEntity.status(409).body(Map.of(
+                "error", "private_repo_confirmation_required"
         ));
     }
 

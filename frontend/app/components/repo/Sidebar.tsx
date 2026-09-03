@@ -1,17 +1,22 @@
 'use client';
 
 import { useUIStore } from '@/app/store/useUiStore';
-import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useParams, usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useRepoStore } from '../../store/useRepoStore';
 import { Repo } from '../../types';
 import { AddRepoForm } from '../ui/AddRepoForm';
 import { RepoRow } from './RepoRow';
+import {
+  selectHasUnseen,
+  useActivityStore,
+} from '@/app/store/useActivityStore';
 
 export function Sidebar() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useParams<{ repoId: string }>();
   const activeRepoId = Number(params.repoId);
 
@@ -28,6 +33,13 @@ export function Sidebar() {
   const isOpen = useUIStore((s) => s.sidebarOpen);
   const close = useUIStore((s) => s.closeSidebar);
 
+  const fetchActivity = useActivityStore((s) => s.fetch);
+  const hasUnseen = useActivityStore(selectHasUnseen);
+
+  useEffect(() => {
+    fetchActivity();
+  }, [fetchActivity]);
+
   async function handleLogout() {
     try {
       await logout();
@@ -35,6 +47,7 @@ export function Sidebar() {
       clear();
     } catch {}
   }
+
   async function handleRename(id: number, name: string) {
     await rename(id, name);
   }
@@ -69,6 +82,21 @@ export function Sidebar() {
           md:static md:translate-x-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
+        <div className='px-3 pt-3'>
+          <button
+            onClick={() => router.push('/')}
+            className={`w-full flex items-center justify-between rounded-md px-2 py-1.5 font-mono text-xs transition-colors ${
+              pathname === '/'
+                ? 'bg-[#21262d] text-[#cdd9e5]'
+                : 'text-[#6e7681] hover:bg-[#161b22] hover:text-[#cdd9e5]'
+            }`}
+          >
+            <span>Home</span>
+            {hasUnseen && (
+              <span className='h-1.5 w-1.5 rounded-full bg-[#316dca]' />
+            )}
+          </button>
+        </div>
         <div className='flex items-center justify-between px-3 py-3'>
           <span className='font-mono text-xs uppercase tracking-widest text-[#484f58]'>
             Repos

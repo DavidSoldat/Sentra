@@ -1,0 +1,1 @@
+ALTER TABLE reviews ADD COLUMN share_token VARCHAR(36) UNIQUE;

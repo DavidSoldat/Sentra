@@ -87,6 +87,20 @@ public class GitHubClient {
         return info;
     }
 
+    public GitHubRepoSummary getRepoInfo(String accessToken, String owner, String repoName) {
+        GitHubRepoSummary info = restClient.get()
+                .uri("/repos/{owner}/{repo}", owner, repoName)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .retrieve()
+                .body(GitHubRepoSummary.class);
+
+        if (info == null) {
+            throw new IllegalStateException(
+                    "Could not fetch repo info for %s/%s".formatted(owner, repoName));
+        }
+        return info;
+    }
+
     public List<PullRequestSummary> listPullRequests(String accessToken, String owner, String repoName) {
         List<PullRequestSummary> prs = restClient.get()
                 .uri("/repos/{owner}/{repo}/pulls?state=all&per_page=100&sort=created&direction=desc",

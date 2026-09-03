@@ -46,6 +46,8 @@ public class UserEntity {
     @Enumerated(EnumType.STRING)
     private AiModel preferredModel = AiModel.CLAUDE_HAIKU;
 
+    @Column(name = "activity_feed_last_viewed_at")
+    private Instant activityFeedLastViewedAt;
 
     public UserEntity(Long githubId, String username, String avatarUrl, String githubAccessToken) {
         this.githubId = githubId;

@@ -6,8 +6,10 @@ import {
   User,
 } from '../types';
 import {
+  ActivityFeed,
   AgentMessage,
   AgentType,
+  PublicReviewResponse,
   ReviewResponse,
   ReviewSummary,
   SubmitReviewRequest,
@@ -137,6 +139,22 @@ export const api = {
       `/api/reviews/${reviewId}/agents/${agentType}/messages`,
     ),
 
+  getActivity: () => request<ActivityFeed>('/api/activity'),
+
+  markActivitySeen: () =>
+    request<void>('/api/activity/mark-seen', { method: 'POST' }),
+
+  shareReview: (id: number, confirm = false) =>
+    request<ReviewResponse>(`/api/reviews/${id}/share?confirm=${confirm}`, {
+      method: 'POST',
+    }),
+
+  unshareReview: (id: number) =>
+    request<void>(`/api/reviews/${id}/share`, { method: 'DELETE' }),
+
+  getPublicReview: (token: string) =>
+    request<PublicReviewResponse>(`/api/public/reviews/${token}`),
+
   postAgentMessage: (
     reviewId: number,
     agentType: AgentType,
@@ -149,6 +167,7 @@ export const api = {
         body: JSON.stringify({ question }),
       },
     ),
+
   retryAgent: (reviewId: number, agentType: AgentType) =>
     request<ReviewResponse>(
       `/api/reviews/${reviewId}/agents/${agentType}/retry`,
@@ -194,4 +213,41 @@ const PR_URL_PATTERN =
 
 export function isValidPrUrl(url: string): boolean {
   return PR_URL_PATTERN.test(url.trim());
+}
+
+export function isPrivateRepoConfirmationRequired(
+  e: unknown,
+): e is ApiError & { body: { error: string } } {
+  return (
+    e instanceof ApiError &&
+    e.status === 409 &&
+    typeof e.body === 'object' &&
+    e.body !== null &&
+    (e.body as { error?: string }).error ===
+      'private_repo_confirmation_required'
+  );
+}
+
+export async function exportReviewMarkdown(id: number): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/reviews/${id}/export`, {
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    throw new ApiError(`Failed to export review (${res.status})`, res.status);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match ? match[1] : `sentra-review-${id}.md`;
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }

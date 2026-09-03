@@ -1,41 +1,21 @@
 'use client';
 
+import {
+  api,
+  exportReviewMarkdown,
+  isPrivateRepoConfirmationRequired,
+  postReviewToGithub,
+} from '@/app/lib/api';
+import {
+  overallLabel,
+  overallSeverity,
+  SEVERITY_STYLES,
+} from '@/app/lib/helpers';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useReview } from '../../../../hooks/useReview';
 import { AgentGrid } from '../../../../components/review/AgentGrid';
-import { AgentResult } from '../../../../types/review';
-import Link from 'next/link';
-import { postReviewToGithub } from '@/app/lib/api';
-
-function overallLabel(status?: string) {
-  switch (status) {
-    case 'RUNNING':
-      return 'Agents are reviewing the diff…';
-    case 'COMPLETED':
-      return 'Review complete.';
-    case 'FAILED':
-      return 'Review failed to complete.';
-    default:
-      return '';
-  }
-}
-
-const SEVERITY_STYLES: Record<string, string> = {
-  HIGH: 'text-[#f85149] border-[#f85149]/30 bg-[#f85149]/10',
-  MEDIUM: 'text-[#d29922] border-[#d29922]/30 bg-[#d29922]/10',
-  LOW: 'text-[#3fb950] border-[#3fb950]/30 bg-[#3fb950]/10',
-  NONE: 'text-[#6e7681] border-[#30363d] bg-transparent',
-};
-
-function overallSeverity(agents: AgentResult[]): string | null {
-  const order = ['HIGH', 'MEDIUM', 'LOW', 'NONE'];
-  const done = agents.filter((a) => a.status === 'DONE' && a.severity);
-  for (const level of order) {
-    if (done.some((a) => a.severity === level)) return level;
-  }
-  return null;
-}
+import { useReview } from '../../../../hooks/useReview';
 
 export default function ReviewDetailPage() {
   const params = useParams<{ repoId: string; reviewId: string }>();
@@ -48,6 +28,14 @@ export default function ReviewDetailPage() {
   const [postError, setPostError] = useState<string | null>(null);
   const [localReview, setLocalReview] = useState<typeof review>(null);
   const [prevReview, setPrevReview] = useState(review);
+
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [needsPrivateConfirm, setNeedsPrivateConfirm] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!Number.isNaN(reviewId)) loadReview(reviewId);
@@ -76,6 +64,66 @@ export default function ReviewDetailPage() {
       );
     } finally {
       setIsPosting(false);
+    }
+  }
+
+  async function handleShare(confirm = false) {
+    if (!localReview) return;
+    setIsSharing(true);
+    setShareError(null);
+    try {
+      const updated = await api.shareReview(localReview.id, confirm);
+      setLocalReview(updated);
+      setNeedsPrivateConfirm(false);
+    } catch (err) {
+      if (isPrivateRepoConfirmationRequired(err)) {
+        setNeedsPrivateConfirm(true);
+      } else {
+        setShareError(
+          err instanceof Error ? err.message : 'Failed to create share link.',
+        );
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  async function handleUnshare() {
+    if (!localReview) return;
+    setIsSharing(true);
+    setShareError(null);
+    try {
+      await api.unshareReview(localReview.id);
+      setLocalReview({ ...localReview, shareToken: null });
+    } catch (err) {
+      setShareError(
+        err instanceof Error ? err.message : 'Failed to revoke share link.',
+      );
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  async function handleCopyLink() {
+    if (!localReview?.shareToken) return;
+    const url = `${window.location.origin}/share/${localReview.shareToken}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleExport() {
+    if (!localReview) return;
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      await exportReviewMarkdown(localReview.id);
+    } catch (err) {
+      setExportError(
+        err instanceof Error ? err.message : 'Failed to export review.',
+      );
+    } finally {
+      setIsExporting(false);
     }
   }
 
@@ -127,29 +175,94 @@ export default function ReviewDetailPage() {
             </div>
 
             {review.status === 'COMPLETED' && (
-              <div className='flex items-center gap-3'>
-                {localReview?.githubCommentUrl ? (
-                  <Link
-                    href={localReview.githubCommentUrl}
-                    target='_blank'
-                    rel='noreferrer'
-                    className='inline-flex items-center gap-1.5 font-mono text-xs text-[#3fb950] hover:underline'
-                  >
-                    ✓ Posted to GitHub
-                  </Link>
-                ) : (
+              <div className='flex flex-col gap-2'>
+                <div className='flex items-center gap-3 flex-wrap'>
+                  {localReview?.githubCommentUrl ? (
+                    <Link
+                      href={localReview.githubCommentUrl}
+                      target='_blank'
+                      rel='noreferrer'
+                      className='inline-flex items-center gap-1.5 font-mono text-xs text-[#3fb950] hover:underline'
+                    >
+                      ✓ Posted to GitHub
+                    </Link>
+                  ) : (
+                    <button
+                      type='button'
+                      onClick={handlePostToGithub}
+                      disabled={isPosting}
+                      className='rounded-md border border-[#2d333b] px-3 py-1.5 font-mono text-xs text-[#cdd9e5] hover:bg-[#161b22] disabled:opacity-50 transition-colors'
+                    >
+                      {isPosting ? 'Posting…' : 'Post to GitHub'}
+                    </button>
+                  )}
+
+                  {localReview?.shareToken ? (
+                    <>
+                      <button
+                        type='button'
+                        onClick={handleCopyLink}
+                        className='rounded-md border border-[#2d333b] px-3 py-1.5 font-mono text-xs text-[#cdd9e5] hover:bg-[#161b22] transition-colors'
+                      >
+                        {copied ? 'Copied!' : 'Copy share link'}
+                      </button>
+                      <button
+                        type='button'
+                        onClick={handleUnshare}
+                        disabled={isSharing}
+                        className='font-mono text-xs text-[#6e7681] hover:text-[#f85149] disabled:opacity-50'
+                      >
+                        Revoke
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type='button'
+                      onClick={() => handleShare(false)}
+                      disabled={isSharing}
+                      className='rounded-md border border-[#2d333b] px-3 py-1.5 font-mono text-xs text-[#cdd9e5] hover:bg-[#161b22] disabled:opacity-50 transition-colors'
+                    >
+                      {isSharing ? 'Creating link…' : 'Share'}
+                    </button>
+                  )}
+
                   <button
                     type='button'
-                    onClick={handlePostToGithub}
-                    disabled={isPosting}
+                    onClick={handleExport}
+                    disabled={isExporting}
                     className='rounded-md border border-[#2d333b] px-3 py-1.5 font-mono text-xs text-[#cdd9e5] hover:bg-[#161b22] disabled:opacity-50 transition-colors'
                   >
-                    {isPosting ? 'Posting…' : 'Post to GitHub'}
+                    {isExporting ? 'Exporting…' : 'Export as Markdown'}
                   </button>
+                </div>
+
+                {needsPrivateConfirm && (
+                  <div className='flex items-center gap-3 rounded-md border border-[#d29922]/40 bg-[#2d2410] px-4 py-3'>
+                    <p className='font-mono text-xs text-[#d29922] flex-1'>
+                      This repo is private. Anyone with the share link will be
+                      able to view this review&apos;s findings, including code
+                      context, without logging in.
+                    </p>
+                    <button
+                      type='button'
+                      onClick={() => handleShare(true)}
+                      className='shrink-0 rounded-md border border-[#d29922]/50 px-3 py-1.5 font-mono text-xs text-[#d29922] hover:bg-[#d29922]/10 transition-colors'
+                    >
+                      Share anyway
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setNeedsPrivateConfirm(false)}
+                      className='shrink-0 font-mono text-xs text-[#6e7681] hover:text-[#cdd9e5]'
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 )}
-                {postError && (
+
+                {(postError || shareError || exportError) && (
                   <span className='font-mono text-xs text-[#f85149]'>
-                    {postError}
+                    {postError || shareError || exportError}
                   </span>
                 )}
               </div>

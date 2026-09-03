@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN activity_feed_last_viewed_at TIMESTAMPTZ;

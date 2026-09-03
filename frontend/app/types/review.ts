@@ -30,6 +30,16 @@ export interface ReviewResponse {
   createdAt: string;
   completedAt: string | null;
   githubCommentUrl: string | null;
+  shareToken: string | null;
+  agents: AgentResult[];
+}
+
+export interface PublicReviewResponse {
+  prUrl: string;
+  prTitle: string | null;
+  prNumber: number;
+  status: ReviewStatus;
+  completedAt: string | null;
   agents: AgentResult[];
 }
 
@@ -54,6 +64,24 @@ export interface ReviewSummary {
   status: ReviewStatus;
   createdAt: string;
   completedAt: string | null;
+}
+
+export interface ActivityItem {
+  reviewId: number;
+  repoId: number;
+  repoName: string;
+  prTitle: string | null;
+  prNumber: number;
+  prUrl: string;
+  status: ReviewStatus;
+  severity: Severity | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface ActivityFeed {
+  lastViewedAt: string | null;
+  items: ActivityItem[];
 }
 
 export const AGENT_META: Record<
