@@ -1,0 +1,10 @@
+logging:
+  level:
+    com.sentra.backend: DEBUG
+
+sentra:
+  security:
+    allowed-origins: http://localhost:3000
+
+paddle:
+  api-base-url: https://sandbox-api.paddle.com

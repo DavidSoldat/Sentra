@@ -1,0 +1,10 @@
+logging:
+  level:
+    com.sentra.backend: INFO
+
+sentra:
+  security:
+    allowed-origins: ${ALLOWED_ORIGINS}
+
+paddle:
+  api-base-url: https://api.paddle.com

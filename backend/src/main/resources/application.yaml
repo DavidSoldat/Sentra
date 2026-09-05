@@ -7,6 +7,12 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 3
+      connection-timeout: 30000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
 
   jpa:
     hibernate:
@@ -30,12 +36,8 @@ spring:
             client-secret: ${GITHUB_CLIENT_SECRET}
             scope: read:user, repo
 
-
 anthropic:
   api-key: ${ANTHROPIC_API_KEY:}
-
-github:
-  token: ${GITHUB_TOKEN:}
 
 sentra:
   ingestion:
@@ -48,6 +50,7 @@ sentra:
       overlap-tokens: 50
     repo:
       max-files: 500
+      max-total-extracted-bytes: 52428800
 
   rag:
     top-k: 20
@@ -55,12 +58,20 @@ sentra:
   security:
     token-encryption-key: ${TOKEN_ENCRYPTION_KEY:}
     jwt-secret: ${JWT_SECRET:}
+    allowed-origins: ${ALLOWED_ORIGINS}
 
 logging:
   level:
-    com.sentra.backend: DEBUG
     dev.langchain4j: INFO
 
 paddle:
   api-key: ${PADDLE_API_KEY}
-  api-base-url: https://sandbox-api.paddle.com
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

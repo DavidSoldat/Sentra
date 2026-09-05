@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/activity")
@@ -43,6 +45,13 @@ public class ActivityController {
         List<ReviewEntity> reviews = reviewRepository.findRecentByUserId(
                 userId, PageRequest.of(0, FEED_LIMIT));
 
+        List<Long> reviewIds = reviews.stream().map(ReviewEntity::getId).toList();
+
+        Map<Long, List<AgentResultEntity>> resultsByReview = reviewIds.isEmpty()
+                ? Map.of()
+                : agentResultRepository.findByReviewIdIn(reviewIds).stream()
+                .collect(Collectors.groupingBy(r -> r.getReview().getId()));
+
         List<ActivityItemResponse> items = reviews.stream()
                 .map(r -> new ActivityItemResponse(
                         r.getId(),
@@ -52,12 +61,21 @@ public class ActivityController {
                         r.getPrNumber(),
                         r.getPrUrl(),
                         r.getStatus().name(),
-                        resolveSeverity(r.getId()),
+                        resolveSeverity(resultsByReview.getOrDefault(r.getId(), List.of())),
                         r.getCreatedAt(),
                         r.getCompletedAt()))
                 .toList();
 
         return ResponseEntity.ok(new ActivityFeedResponse(user.getActivityFeedLastViewedAt(), items));
+    }
+
+    private String resolveSeverity(List<AgentResultEntity> results) {
+        return SEVERITY_ORDER.stream()
+                .filter(level -> results.stream().anyMatch(r ->
+                        r.getStatus() == AgentResultStatus.DONE && r.getSeverity() == level))
+                .findFirst()
+                .map(SeverityStatus::name)
+                .orElse(null);
     }
 
     @PostMapping("/mark-seen")
@@ -69,16 +87,5 @@ public class ActivityController {
         userRepository.save(user);
 
         return ResponseEntity.noContent().build();
-    }
-
-    private String resolveSeverity(Long reviewId) {
-        List<AgentResultEntity> results = agentResultRepository.findByReviewId(reviewId);
-
-        return SEVERITY_ORDER.stream()
-                .filter(level -> results.stream().anyMatch(r ->
-                        r.getStatus() == AgentResultStatus.DONE && r.getSeverity() == level))
-                .findFirst()
-                .map(SeverityStatus::name)
-                .orElse(null);
     }
 }

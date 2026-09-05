@@ -27,7 +27,7 @@ public class PaddleWebhookController {
             return ResponseEntity.status(401).build();
         }
 
-        log.info("Verified Paddle webhook received: {}", rawBody);
+        log.debug("Verified Paddle webhook received: {}", rawBody);
         webhookService.process(rawBody);
         return ResponseEntity.ok().build();
     }

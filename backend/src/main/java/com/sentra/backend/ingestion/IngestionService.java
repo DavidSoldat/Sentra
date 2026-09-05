@@ -48,6 +48,9 @@ public class IngestionService {
     @Qualifier("fileProcessingExecutor")
     private final Executor fileProcessingExecutor;
 
+    @Value("${sentra.ingestion.repo.max-total-extracted-bytes:52428800}")
+    private long maxTotalExtractedBytes;
+
     @Value("${sentra.ingestion.repo.max-files:500}")
     private int maxFiles;
 
@@ -105,6 +108,7 @@ public class IngestionService {
 
     private List<ExtractedFile> extractFiles(byte[] tarballBytes) {
         List<ExtractedFile> files = new ArrayList<>();
+        long totalBytesExtracted = 0;
 
         try (var gzipIn = new GZIPInputStream(new ByteArrayInputStream(tarballBytes));
              var tarIn = new TarArchiveInputStream(gzipIn)) {
@@ -113,6 +117,12 @@ public class IngestionService {
             while ((entry = tarIn.getNextEntry()) != null) {
                 if (entry.isDirectory()) continue;
                 if (entry.getSize() > 200_000) continue;
+
+                if (totalBytesExtracted + entry.getSize() > maxTotalExtractedBytes) {
+                    log.warn("Reached max total extraction size ({} bytes) while extracting tarball, stopping early",
+                            maxTotalExtractedBytes);
+                    break;
+                }
 
                 String rawPath = entry.getName();
                 int firstSlash = rawPath.indexOf('/');
@@ -129,6 +139,7 @@ public class IngestionService {
                 }
 
                 files.add(new ExtractedFile(relativePath, content));
+                totalBytesExtracted += contentBytes.length;
 
                 if (files.size() >= maxFiles) {
                     log.warn("Reached max-files cap ({}) while extracting tarball, stopping early", maxFiles);

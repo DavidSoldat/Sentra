@@ -11,4 +11,5 @@ public interface AgentResultRepository extends JpaRepository<AgentResultEntity, 
 
     List<AgentResultEntity> findByReviewId(Long reviewId);
     Optional<AgentResultEntity> findByReviewIdAndAgent(Long reviewId, AgentType agent);
+    List<AgentResultEntity> findByReviewIdIn(List<Long> reviewIds);
 }
